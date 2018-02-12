@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,12 +20,20 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\HTMLShadowElement.webidl. Do not edit!
+
 package js.html;
 
+/**
+	The `HTMLShadowElement` interface represents a `shadow` HTML Element, which is used in Shadow DOM.
+
+	Documentation [HTMLShadowElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLShadowElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLShadowElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLShadowElement>
+**/
 @:native("HTMLShadowElement")
 extern class ShadowElement extends Element
 {
-	var resetStyleInheritance : Bool;
-
+	var olderShadowRoot(default,null) : ShadowRoot;
+	
 }

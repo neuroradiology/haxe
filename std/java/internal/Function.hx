@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,7 +29,7 @@ import java.internal.Runtime;
  *
  * @author waneck
  */
-@:abstract @:nativeGen @:native("haxe.lang.Function") @:keep private class Function
+@:abstract @:nativeGen @:native("haxe.lang.Function") @:keep class Function
 {
 	function new(arity:Int, type:Int)
 	{
@@ -39,10 +39,9 @@ import java.internal.Runtime;
 
 @:nativeGen @:native("haxe.lang.VarArgsBase") @:keep private class VarArgsBase extends Function
 {
-	public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
+	public function __hx_invokeDynamic(dynArgs:java.NativeArray<Dynamic>):Dynamic
 	{
 		throw "Abstract implementation";
-		return null;
 	}
 }
 
@@ -56,9 +55,9 @@ import java.internal.Runtime;
 		this.fun = fun;
 	}
 
-	override public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
+	override public function __hx_invokeDynamic(dynArgs:java.NativeArray<Dynamic>):Dynamic
 	{
-		return fun(dynArgs);
+		return fun(@:privateAccess Array.ofNative(dynArgs));
 	}
 }
 
@@ -74,8 +73,22 @@ import java.internal.Runtime;
 		this.field = field;
 	}
 
-	override public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
+	override public function __hx_invokeDynamic(dynArgs:java.NativeArray<Dynamic>):Dynamic
 	{
 		return Runtime.callField(obj, field, dynArgs);
+	}
+
+	public function equals(obj:Dynamic):Bool
+	{
+		if (obj == null)
+			return false;
+
+		var c:Closure = cast obj;
+		return (c.obj == this.obj && c.field == this.field);
+	}
+
+	public function hashCode():Int
+	{
+		return obj.hashCode() ^ untyped field.hashCode();
 	}
 }

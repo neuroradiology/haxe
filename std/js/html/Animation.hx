@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,49 +20,105 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\Animation.webidl. Do not edit!
+
 package js.html;
 
-/** <p>CSS&nbsp;animations make it possible to animate transitions from one CSS style configuration to another. Animations consist of two components:&nbsp;A style describing the animation and a set of keyframes that indicate the start and end states of the animation's CSS style, as well as possible intermediate waypoints along the way.</p>
-<p>There are three key advantages to CSS&nbsp;animations over traditional script-driven animation techniques:</p>
-<ol> <li>They're easy to use for simple animations; you can create them without even having to know JavaScript.</li> <li>The animations run well, even under moderate system load. Simple animations can often perform poorly in JavaScript (unless they're well made). The rendering engine can use frame-skipping and other techniques to keep the performance as smooth as possible.</li> <li>Letting the browser control the animation sequence lets the browser optimize performance and efficiency by, for example, reducing the update frequency of animations running in tabs that aren't currently visible.</li>
-</ol><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/CSS/CSS_animations">MDN</a>. */
+/**
+	The `Animation` interface of the Web Animations API represents a single animation player and provides playback controls and a timeline for an animation node or source.
+
+	Documentation [Animation](https://developer.mozilla.org/en-US/docs/Web/API/Animation) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Animation$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Animation>
+**/
 @:native("Animation")
-extern class Animation
+extern class Animation extends EventTarget
 {
-	static inline var DIRECTION_ALTERNATE : Int = 1;
-
-	static inline var DIRECTION_NORMAL : Int = 0;
-
-	static inline var FILL_BACKWARDS : Int = 1;
-
-	static inline var FILL_BOTH : Int = 3;
-
-	static inline var FILL_FORWARDS : Int = 2;
-
-	static inline var FILL_NONE : Int = 0;
-
-	var delay(default,null) : Float;
-
-	var direction(default,null) : Int;
-
-	var duration(default,null) : Float;
-
-	var elapsedTime : Float;
-
-	var ended(default,null) : Bool;
-
-	var fillMode(default,null) : Int;
-
-	var iterationCount(default,null) : Int;
-
-	var name(default,null) : String;
-
-	var paused(default,null) : Bool;
-
-	function pause() : Void;
-
+	
+	/**
+		Gets and sets the `String` used to identify the animation.
+	**/
+	var id : String;
+	
+	/**
+		Gets and sets the `AnimationEffectReadOnly` associated with this animation. This will usually be a `KeyframeEffect` object.
+	**/
+	var effect(default,null) : AnimationEffectReadOnly;
+	
+	/**
+		Gets or sets the `AnimationTimeline` associated with this animation.
+	**/
+	var timeline(default,null) : AnimationTimeline;
+	
+	/**
+		Gets or sets the scheduled time when an animation's playback should begin.
+	**/
+	var startTime : Float;
+	
+	/**
+		The current time value of the animation in milliseconds, whether running or paused. If the animation lacks a `AnimationTimeline`, is inactive or hasn't been played yet, its value is `null`.
+	**/
+	var currentTime : Float;
+	
+	/**
+		Gets or sets the playback rate of the animation.
+	**/
+	var playbackRate : Float;
+	
+	/**
+		Returns an enumerated value describing the playback state of an animation.
+	**/
+	var playState(default,null) : AnimationPlayState;
+	
+	/**
+		Returns the current ready Promise for this animation.
+	**/
+	var ready(default,null) : Promise<Animation>;
+	
+	/**
+		Returns the current finished Promise for this animation.
+	**/
+	var finished(default,null) : Promise<Animation>;
+	
+	/**
+		Gets and sets the event handler for the `finish` event.
+	**/
+	var onfinish : haxe.Constraints.Function;
+	
+	/**
+		Gets and sets the event handler for the `cancel` event.
+	**/
+	var oncancel : haxe.Constraints.Function;
+	
+	/** @throws DOMError */
+	function new( ?effect : KeyframeEffectReadOnly, ?timeline : AnimationTimeline ) : Void;
+	
+	/**
+		Clears all `KeyframeEffect` caused by this animation and aborts its playback.
+	**/
+	function cancel() : Void;
+	/** @throws DOMError */
+	
+	/**
+		Seeks either end of an animation, depending on whether the animation is playing or reversing.
+	**/
+	function finish() : Void;
+	/** @throws DOMError */
+	
+	/**
+		Starts or resumes playing of an animation, or begins the animation again if it previously finished.
+	**/
 	function play() : Void;
-
+	/** @throws DOMError */
+	
+	/**
+		Suspends playing of an animation.
+	**/
+	function pause() : Void;
+	/** @throws DOMError */
+	
+	/**
+		Reverses playback direction, stopping at the start of the animation. If the animation is finished or unplayed, it will play from end to beginning.
+	**/
+	function reverse() : Void;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,19 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from events.webidl. Do not edit!
+
 package js.html;
 
-typedef EventListener = Dynamic -> Void;
+/**
+	This method is called whenever an event occurs of the type for which the `EventListener` interface was registered.
+
+	Documentation [EventListener](https://developer.mozilla.org/en-US/docs/Web/API/EventListener) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/EventListener$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/EventListener>
+**/
+@:native("EventListener")
+extern class EventListener
+{
+	function handleEvent( event : Event ) : Void;
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -46,8 +46,10 @@ import java.NativeArray;
 	private var nOccupied:Int;
 	private var upperBound:Int;
 
+#if !no_map_cache
 	private var cachedKey:String;
 	private var cachedIndex:Int;
+#end
 
 #if DEBUG_HASHTBL
 	private var totalProbes:Int;
@@ -58,7 +60,9 @@ import java.NativeArray;
 
 	public function new() : Void
 	{
+#if !no_map_cache
 		cachedIndex = -1;
+#end
 	}
 
 	public function set( key : String, value : T ) : Void
@@ -67,9 +71,11 @@ import java.NativeArray;
 		if (nOccupied >= upperBound)
 		{
 			if (nBuckets > (size << 1))
+			{
 				resize(nBuckets - 1); //clear "deleted" elements
-			else
+			} else {
 				resize(nBuckets + 2);
+			}
 		}
 
 		var hashes = hashes, keys = _keys, hashes = hashes;
@@ -79,14 +85,18 @@ import java.NativeArray;
 			k = hash(key);
 			var i = k & mask, nProbes = 0;
 
-			//for speed up
-			if (isEither(hashes[i])) {
+			var delKey = -1;
+			// to speed things up, don't loop if the first bucket is already free
+			if (isEmpty(hashes[i])) {
 				x = i;
 			} else {
-				//var inc = getInc(k, mask);
 				var last = i, flag;
-				while(! (isEither(flag = hashes[i]) || (flag == k && _keys[i] == key)) )
+				while(! (isEmpty(flag = hashes[i]) || (flag == k && _keys[i] == key)) )
 				{
+					if (isDel(flag) && delKey == -1)
+					{
+						delKey = i;
+					}
 					i = (i + ++nProbes) & mask;
 #if DEBUG_HASHTBL
 					probeTimes++;
@@ -94,7 +104,13 @@ import java.NativeArray;
 						throw "assert";
 #end
 				}
-				x = i;
+
+				if (isEmpty(flag) && delKey != -1)
+				{
+					x = delKey;
+				} else {
+					x = i;
+				}
 			}
 
 #if DEBUG_HASHTBL
@@ -122,8 +138,10 @@ import java.NativeArray;
 			vals[x] = value;
 		}
 
+#if !no_map_cache
 		cachedIndex = x;
 		cachedKey = key;
+#end
 	}
 
 	@:final private function lookup( key : String ) : Int
@@ -135,7 +153,7 @@ import java.NativeArray;
 			var mask = nBuckets - 1, hash = hash(key), k = hash, nProbes = 0;
 			var i = k & mask;
 			var last = i, flag;
-			//var inc = getInc(k, mask);
+			// if we hit an empty bucket, it means we're done
 			while (!isEmpty(flag = hashes[i]) && (isDel(flag) || flag != k || keys[i] != key))
 			{
 				i = (i + ++nProbes) & mask;
@@ -189,8 +207,10 @@ import java.NativeArray;
 		if (j != 0)
 		{ //rehashing is required
 			//resetting cache
+#if !no_map_cache
 			cachedKey = null;
 			cachedIndex = -1;
+#end
 
 			j = -1;
 			var nBuckets = nBuckets, _keys = _keys, vals = vals, hashes = hashes;
@@ -204,15 +224,18 @@ import java.NativeArray;
 					var key = _keys[j];
 					var val = vals[j];
 
+					_keys[j] = null;
+					vals[j] = cast null;
 					hashes[j] = FLAG_DEL;
 					while (true) /* kick-out process; sort of like in Cuckoo hashing */
 					{
 						var nProbes = 0;
-						//var inc = getInc(k, newMask);
 						var i = k & newMask;
 
 						while (!isEmpty(newHash[i]))
+						{
 							i = (i + ++nProbes) & newMask;
+						}
 
 						newHash[i] = k;
 
@@ -263,17 +286,19 @@ import java.NativeArray;
 	public function get( key : String ) : Null<T>
 	{
 		var idx = -1;
+#if !no_map_cache
 		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
 		{
 			return vals[idx];
 		}
-
+#end
 		idx = lookup(key);
 		if (idx != -1)
 		{
+#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
-
+#end
 			return vals[idx];
 		}
 
@@ -283,16 +308,20 @@ import java.NativeArray;
 	private function getDefault( key : String, def : T ) : T
 	{
 		var idx = -1;
+#if !no_map_cache
 		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
 		{
 			return vals[idx];
 		}
+#end
 
 		idx = lookup(key);
 		if (idx != -1)
 		{
+#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
+#end
 
 			return vals[idx];
 		}
@@ -303,17 +332,20 @@ import java.NativeArray;
 	public function exists( key : String ) : Bool
 	{
 		var idx = -1;
+#if !no_map_cache
 		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
 		{
 			return true;
 		}
+#end
 
 		idx = lookup(key);
 		if (idx != -1)
 		{
+#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
-
+#end
 			return true;
 		}
 
@@ -323,7 +355,9 @@ import java.NativeArray;
 	public function remove( key : String ) : Bool
 	{
 		var idx = -1;
+#if !no_map_cache
 		if (! (cachedKey == key && ( (idx = cachedIndex) != -1 )))
+#end
 		{
 			idx = lookup(key);
 		}
@@ -332,9 +366,12 @@ import java.NativeArray;
 		{
 			return false;
 		} else {
+#if !no_map_cache
 			if (cachedKey == key)
+			{
 				cachedIndex = -1;
-
+			}
+#end
 			hashes[idx] = FLAG_DEL;
 			_keys[idx] = null;
 			vals[idx] = null;
@@ -348,59 +385,24 @@ import java.NativeArray;
 		Returns an iterator of all keys in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function keys() : Iterator<String>
+	public inline function keys() : Iterator<String>
 	{
-		var i = 0;
-		var len = nBuckets;
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(hashes[j]))
-					{
-						i = j;
-						return true;
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = _keys[i];
-				cachedIndex = i;
-				cachedKey = ret;
-
-				i = i + 1;
-				return ret;
-			}
-		};
+		return new StringMapKeyIterator(this);
 	}
 
 	/**
 		Returns an iterator of all values in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function iterator() : Iterator<T>
+	public inline function iterator() : Iterator<T>
 	{
-		var i = 0;
-		var len = nBuckets;
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(hashes[j]))
-					{
-						i = j;
-						return true;
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = vals[i];
-				i = i + 1;
-				return ret;
-			}
-		};
+		return new StringMapValueIterator(this);
+	}
+
+	public function copy() : StringMap<T> {
+		var copied = new StringMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
 	}
 
 	/**
@@ -486,3 +488,77 @@ import java.NativeArray;
 }
 
 private typedef HashType = Int;
+
+@:final
+@:access(haxe.ds.StringMap)
+private class StringMapKeyIterator<T>
+{
+	var m:StringMap<T>;
+	var i:Int;
+	var len:Int;
+
+	public function new(m:StringMap<T>)
+	{
+		this.m = m;
+		this.i = 0;
+		this.len = m.nBuckets;
+	}
+
+	public function hasNext():Bool
+	{
+		for (j in i...len)
+		{
+			if (!StringMap.isEither(m.hashes[j]))
+			{
+				i = j;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public function next():String
+	{
+		var ret = m._keys[i];
+#if !no_map_cache
+		m.cachedIndex = i;
+		m.cachedKey = ret;
+#end
+		i++;
+		return ret;
+	}
+}
+
+@:final
+@:access(haxe.ds.StringMap)
+private class StringMapValueIterator<T>
+{
+	var m:StringMap<T>;
+	var i:Int;
+	var len:Int;
+
+	public function new(m:StringMap<T>)
+	{
+		this.m = m;
+		this.i = 0;
+		this.len = m.nBuckets;
+	}
+
+	public function hasNext():Bool
+	{
+		for (j in i...len)
+		{
+			if (!StringMap.isEither(m.hashes[j]))
+			{
+				i = j;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public inline function next():T
+	{
+		return m.vals[i++];
+	}
+}

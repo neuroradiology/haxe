@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,20 +20,34 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\Performance.webidl. Do not edit!
+
 package js.html;
 
-/** The articles linked to from here will help you improve performance, whether you're developing core Mozilla code or an add-on.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/Performance">MDN</a>. */
+/**
+	The `Performance` interface represents timing-related performance information for the given page.
+
+	Documentation [Performance](https://developer.mozilla.org/en-US/docs/Web/API/Performance) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Performance$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Performance>
+**/
 @:native("Performance")
-extern class Performance extends EventTarget
+extern class Performance
 {
-	var memory(default,null) : MemoryInfo;
-
-	var navigation(default,null) : PerformanceNavigation;
-
+	
+	/**
+		Is a `PerformanceTiming` object containing latency-related performance information.
+	**/
 	var timing(default,null) : PerformanceTiming;
-
+	
+	/**
+		Is a `PerformanceNavigation` object representing the type of navigation that occurs in the given browsing context, like the amount of redirections needed to fetch the resource.
+	**/
+	var navigation(default,null) : PerformanceNavigation;
+	
+	
+	/**
+		Returns a `DOMHighResTimeStamp` representing the amount of milliseconds elapsed since a reference instant.
+	**/
 	function now() : Float;
-
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,10 @@
  */
 package haxe;
 
+import php.*;
+import haxe.io.Bytes;
+import haxe.crypto.Base64;
+
 @:coreApi
 class Resource {
 
@@ -29,26 +33,36 @@ class Resource {
 	}
 
 	static function getDir() : String {
-		return untyped __call__('dirname', __php__('__FILE__'))+"/../../res";
+		return Global.dirname(Const.__FILE__) + "/../../res";
 	}
 
+	@:access(haxe.io.Path.escape)
 	static function getPath(name : String) : String {
-		return getDir()+'/'+cleanName(name);
+		return getDir()+'/'+haxe.io.Path.escape(name);
 	}
 
+	@:access(haxe.io.Path.unescape)
 	public static function listNames() : Array<String> {
 		var a = sys.FileSystem.readDirectory(getDir());
 		if(a[0] == '.') a.shift();
 		if(a[0] == '..') a.shift();
-		return a;
+		return a.map(function(s) return haxe.io.Path.unescape(s));
 	}
 
 	public static function getString( name : String ) : String {
-		return sys.io.File.getContent(getPath(name));
+		var path = getPath(name);
+		return if (!sys.FileSystem.exists(path))
+			null;
+		else
+			sys.io.File.getContent(path);
 	}
 
 	public static function getBytes( name : String ) : haxe.io.Bytes {
-		return sys.io.File.getBytes(getPath(name));
+		var path = getPath(name);
+		return if (!sys.FileSystem.exists(path))
+			null;
+		else
+			sys.io.File.getBytes(path);
 	}
 
 }

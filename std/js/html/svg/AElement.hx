@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,18 +20,26 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\SVGAElement.webidl. Do not edit!
+
 package js.html.svg;
 
-/** The <code>SVGAElement</code> interface provides access to the properties of <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/a">&lt;a&gt;</a></code>
- elements, as well as methods to manipulate them.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/Document_Object_Model_(DOM)/SVGAElement">MDN</a>. */
-@:native("SVGAElement")
-extern class AElement extends Element
-{
-	/** Corresponds to attribute 
-<code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/target" class="new">target</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/a">&lt;a&gt;</a></code>
- element. */
-	var target(default,null) : AnimatedString;
+/**
+	The `SVGAElement` interface provides access to the properties of `a` element, as well as methods to manipulate them.
 
+	Documentation [SVGAElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGAElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGAElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAElement>
+**/
+@:native("SVGAElement")
+extern class AElement extends GraphicsElement
+{
+	
+	/**
+		It corresponds to attribute  `target` on the given `a` element.
+	**/
+	var target(default,null) : AnimatedString;
+	var download : String;
+	var href(default,null) : AnimatedString;
+	
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,12 @@
  */
 package haxe.ds;
 
-#if (flash9 || cpp)
+/**
+	A cell of `haxe.ds.GenericStack`.
+  
+	@see https://haxe.org/manual/std-GenericStack.html
+**/
+#if (flash || cpp)
 @:generic
 #end
 class GenericCell<T> {
@@ -32,6 +37,15 @@ class GenericCell<T> {
 
 #if cpp
 @:generic
+#if cppia
+private class GenericStackIterator<T> {
+	public var current : GenericCell<T>;
+	public function hasNext():Bool { return current!=null; }
+	public function next():T { var result = current.elt; current = current.next; return result; }
+
+	public function new(head) { current = head; }
+}
+#else
 private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 	public var current : GenericCell<T>;
 	override public function hasNext():Bool { return current!=null; }
@@ -39,6 +53,8 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 
 	public function new(head) { current = head; }
 }
+#end
+
 
 #end
 
@@ -53,8 +69,10 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 
 	The generated name is an implementation detail and should not be relied
 	upon.
+
+	@see https://haxe.org/manual/std-GenericStack.html
 **/
-#if (flash9 || cpp)
+#if (flash || cpp)
 @:generic
 #end
 class GenericStack<T> {
@@ -115,7 +133,7 @@ class GenericStack<T> {
 		If no matching element is found, false is returned.
 	**/
 	public function remove( v : T ) : Bool {
-		var prev = null;
+		var prev:GenericCell<T> = null;
 		var l = head;
 		while( l != null ) {
 			if( l.elt == v ) {

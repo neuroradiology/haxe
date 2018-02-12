@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,11 +21,10 @@
  */
 @:coreApi class EReg {
 
-	var r : Dynamic;
+	var r : HaxeRegExp;
 
-	public function new( r : String, opt : String ) : Void {
-		opt = opt.split("u").join(""); // 'u' (utf8) depends on page encoding
-		this.r = untyped __new__("RegExp",r,opt);
+	public inline function new( r : String, opt : String ) : Void {
+		this.r = new HaxeRegExp(r, opt.split("u").join("")); // 'u' (utf8) depends on page encoding
 	}
 
 	public function match( s : String ) : Bool {
@@ -78,11 +77,11 @@
 	public function split( s : String ) : Array<String> {
 		// we can't use directly s.split because it's ignoring the 'g' flag
 		var d = "#__delim__#";
-		return untyped s.replace(r,d).split(d);
+		return replace(s,d).split(d);
 	}
 
-	public function replace( s : String, by : String ) : String {
-		return untyped s.replace(r,by);
+	public inline function replace( s : String, by : String ) : String {
+		return (cast s).replace(r,by);
 	}
 
 	public function map( s : String, f : EReg -> String ) : String {
@@ -109,4 +108,15 @@
 			buf.add(s.substr(offset));
 		return buf.toString();
 	}
+
+	public static inline function escape( s : String ) : String {
+		return (cast s).replace(escapeRe, "\\$&");
+	}
+	static var escapeRe = new js.RegExp("[.*+?^${}()|[\\]\\\\]", "g");
+}
+
+@:native("RegExp")
+private extern class HaxeRegExp extends js.RegExp {
+	var m:js.RegExp.RegExpMatch;
+	var s:String;
 }

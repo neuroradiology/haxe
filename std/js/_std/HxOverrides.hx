@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,49 +40,56 @@ class HxOverrides {
 		switch( s.length ) {
 		case 8: // hh:mm:ss
 			var k = s.split(":");
-			var d : Date = untyped __new__(Date);
-			untyped d["setTime"](0);
-			untyped d["setUTCHours"](k[0]);
-			untyped d["setUTCMinutes"](k[1]);
-			untyped d["setUTCSeconds"](k[2]);
+			var d = js.Syntax.new_(Date);
+			(cast d)[cast "setTime"](0);
+			(cast d)[cast "setUTCHours"](k[0]);
+			(cast d)[cast "setUTCMinutes"](k[1]);
+			(cast d)[cast "setUTCSeconds"](k[2]);
 			return d;
 		case 10: // YYYY-MM-DD
 			var k = s.split("-");
-			return new Date(cast k[0],cast untyped k[1] - 1,cast k[2],0,0,0);
+			return new Date(cast k[0],(cast k[1]) - 1,cast k[2],0,0,0);
 		case 19: // YYYY-MM-DD hh:mm:ss
 			var k = s.split(" ");
 			var y = k[0].split("-");
 			var t = k[1].split(":");
-			return new Date(cast y[0],cast untyped y[1] - 1,cast y[2],cast t[0],cast t[1],cast t[2]);
+			return new Date(cast y[0],(cast y[1]) - 1,cast y[2],cast t[0],cast t[1],cast t[2]);
 		default:
 			throw "Invalid date format : " + s;
 		}
 	}
 
+	@:pure
 	static function cca( s : String, index : Int ) : Null<Int> {
-		#if mt
-		var x = (cast s).cca(index);
-		#else
 		var x = (cast s).charCodeAt(index);
-		#end
 		if( x != x ) // fast isNaN
-			return untyped undefined; // isNaN will still return true
+			return js.Lib.undefined; // isNaN will still return true
 		return x;
 	}
 
+	@:pure
 	static function substr( s : String, pos : Int, ?len : Int ) : String {
-		if( pos != null && pos != 0 && len != null && len < 0 ) return "";
-		if( len == null ) len = s.length;
-		if( pos < 0 ){
-			pos = s.length + pos;
-			if( pos < 0 ) pos = 0;
-		}else if( len < 0 ){
-			len = s.length + len - pos;
+		if (len == null) {
+			len = s.length;
+		} else if (len < 0) {
+			if (pos == 0)
+				len = s.length + len;
+			else
+				return "";
 		}
 
-		return (untyped s).substr(pos, len);
+		#if (js_es < 5)
+		if (pos < 0) {
+			pos = s.length + pos;
+			if (pos < 0)
+				pos = 0;
+		}
+		#end
+
+		return (cast s).substr(pos, len);
 	}
 
+	@:pure
 	static function indexOf<T>( a : Array<T>, obj : T, i : Int) {
 		var len = a.length;
 		if (i < 0) {
@@ -91,13 +98,14 @@ class HxOverrides {
 		}
 		while (i < len)
 		{
-			if (untyped __js__("a[i] === obj"))
+			if (js.Syntax.strictEq(a[i], obj))
 				return i;
 			i++;
 		}
 		return -1;
 	}
 
+	@:pure
 	static function lastIndexOf<T>( a : Array<T>, obj : T, i : Int) {
 		var len = a.length;
 		if (i >= len)
@@ -106,7 +114,7 @@ class HxOverrides {
 			i += len;
 		while (i >= 0)
 		{
-			if (untyped __js__("a[i] === obj"))
+			if (js.Syntax.strictEq(a[i], obj))
 				return i;
 			i--;
 		}
@@ -120,6 +128,7 @@ class HxOverrides {
 		return true;
 	}
 
+	@:pure
 	static function iter<T>( a : Array<T> ) : Iterator<T> untyped {
 		return {
 			cur : 0,
@@ -134,13 +143,9 @@ class HxOverrides {
 	}
 
 	static function __init__() untyped {
-#if !js_es5
+#if (js_es < 5)
 		__feature__('HxOverrides.indexOf', if( Array.prototype.indexOf ) __js__("HxOverrides").indexOf = function(a,o,i) return Array.prototype.indexOf.call(a, o, i));
 		__feature__('HxOverrides.lastIndexOf', if( Array.prototype.lastIndexOf ) __js__("HxOverrides").lastIndexOf = function(a,o,i) return Array.prototype.lastIndexOf.call(a, o, i));
-#end
-
-#if mt
-		if( String.prototype.cca == null ) String.prototype.cca = String.prototype.charCodeAt;
 #end
 	}
 

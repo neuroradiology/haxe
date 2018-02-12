@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,8 +21,11 @@
  */
 /**
 	This class defines mathematical functions and constants.
+
+	@see https://haxe.org/manual/std-math.html
 **/
 #if cpp @:include("hxMath.h") #end
+@:pure
 extern class Math
 {
 	/**
@@ -32,48 +35,44 @@ extern class Math
 	static var PI(default,null) : Float;
 
 	/**
-		A special Float constant which denotes negative infinity.
+		A special `Float` constant which denotes negative infinity.
 
 		For example, this is the result of -1.0 / 0.0.
 
-		Operations with NEGATIVE_INFINITY as an operand may result in
-		NEGATIVE_INFINITY, POSITIVE_INFINITY or NaN.
+		Operations with `NEGATIVE_INFINITY` as an operand may result in
+		`NEGATIVE_INFINITY`, `POSITIVE_INFINITY` or `NaN`.
 
-		If this constant is converted to an Int, e.g. through Std.int(), the
+		If this constant is converted to an `Int`, e.g. through `Std.int()`, the
 		result is unspecified.
 	**/
 	static var NEGATIVE_INFINITY(default, null) : Float;
 
 	/**
-		A special Float constant which denotes negative infinity.
+		A special `Float` constant which denotes positive infinity.
 
 		For example, this is the result of 1.0 / 0.0.
 
-		Operations with POSITIVE_INFINITY as an operand may result in
-		NEGATIVE_INFINITY, POSITIVE_INFINITY or NaN.
+		Operations with `POSITIVE_INFINITY` as an operand may result in
+		`NEGATIVE_INFINITY`, `POSITIVE_INFINITY` or `NaN`.
 
-		If this constant is converted to an Int, e.g. through Std.int(), the
+		If this constant is converted to an `Int`, e.g. through `Std.int()`, the
 		result is unspecified.
 	**/
 	static var POSITIVE_INFINITY(default,null) : Float;
 
 	/**
-		A special Float constant which denotes an invalid number.
+		A special `Float` constant which denotes an invalid number.
 
 		NaN stands for "Not a Number". It occurs when a mathematically incorrect
 		operation is executed, such as taking the square root of a negative
 		number: Math.sqrt(-1).
 
-		All further operations with NaN as an operand will result in NaN.
+		All further operations with `NaN` as an operand will result in `NaN`.
 
-		If this constant is converted to an Int, e.g. through Std.int(), the
+		If this constant is converted to an `Int`, e.g. through `Std.int()`, the
 		result is unspecified.
 
-		In order to test if a value is NaN, you should use Math.isNaN() function.
-
-		@php In PHP versions prior to 5.3.1 VC 9 there may be unexpected
-		results when performing arithmetic operations with NaN on Windows,
-		see [https://bugs.php.net/bug.php?id=42143]
+		In order to test if a value is `NaN`, you should use `Math.isNaN()` function.
 	**/
 	static var NaN(default, null) : Float;
 
@@ -83,56 +82,56 @@ extern class Math
 		If `v` is positive or 0, the result is unchanged. Otherwise the result
 		is -`v`.
 
-		If `v` is NEGATIVE_INFINITY or POSITIVE_INFINITY, the result is
-		POSITIVE_INFINITY.
+		If `v` is `NEGATIVE_INFINITY` or `POSITIVE_INFINITY`, the result is
+		`POSITIVE_INFINITY`.
 
-		If `v` is NaN, the result is NaN.
+		If `v` is `NaN`, the result is `NaN`.
 	**/
 	static function abs(v:Float):Float;
 
 	/**
 		Returns the smaller of values `a` and `b`.
 
-		If `a` or `b` are NaN, the result is NaN.
-		If `a` or `b` are NEGATIVE_INFINITY, the result is NEGATIVE_INFINITY.
-		If `a` and `b` are POSITIVE_INFINITY, the result is POSITIVE_INFINITY.
+		If `a` or `b` are `NaN`, the result is `NaN`.
+		If `a` or `b` are `NEGATIVE_INFINITY`, the result is `NEGATIVE_INFINITY`.
+		If `a` and `b` are `POSITIVE_INFINITY`, the result is `POSITIVE_INFINITY`.
 	**/
 	static function min(a:Float, b:Float):Float;
 
 	/**
 		Returns the greater of values `a` and `b`.
 
-		If `a` or `b` are NaN, the result is NaN.
-		If `a` or `b` are POSITIVE_INFINITY, the result is POSITIVE_INFINITY.
-		If `a` and `b` are NEGATIVE_INFINITY, the result is NEGATIVE_INFINITY.
+		If `a` or `b` are `NaN`, the result is `NaN`.
+		If `a` or `b` are `POSITIVE_INFINITY`, the result is `POSITIVE_INFINITY`.
+		If `a` and `b` are `NEGATIVE_INFINITY`, the result is `NEGATIVE_INFINITY`.
 	**/
 	static function max(a:Float, b:Float):Float;
 
 	/**
 		Returns the trigonometric sine of the specified angle `v`, in radians.
 
-		If `v` is NaN or infinite, the result is NaN.
+		If `v` is `NaN` or infinite, the result is `NaN`.
 	**/
 	static function sin(v:Float):Float;
 
 	/**
 		Returns the trigonometric cosine of the specified angle `v`, in radians.
 
-		If `v` is NaN or infinite, the result is NaN.
+		If `v` is `NaN` or infinite, the result is `NaN`.
 	**/
 	static function cos(v:Float):Float;
 
 	/**
 		Returns the trigonometric tangent of the specified angle `v`, in radians.
 
-		If `v` is NaN or infinite, the result is NaN.
+		If `v` is `NaN` or infinite, the result is `NaN`.
 	**/
 	static function tan(v:Float):Float;
 
 	/**
 		Returns the trigonometric arc of the specified angle `v`, in radians.
 
-		If `v` is NaN or infinite, the result is NaN.
+		If `v` is `NaN` or infinite, the result is `NaN`.
 	**/
 	static function asin(v:Float):Float;
 
@@ -140,7 +139,7 @@ extern class Math
 		Returns the trigonometric arc cosine of the specified angle `v`,
 		in radians.
 
-		If `v` is NaN or infinite, the result is NaN.
+		If `v` is `NaN` or infinite, the result is `NaN`.
 	**/
 	static function acos(v:Float):Float;
 
@@ -148,7 +147,7 @@ extern class Math
 		Returns the trigonometric arc tangent of the specified angle `v`,
 		in radians.
 
-		If `v` is NaN or infinite, the result is NaN.
+		If `v` is `NaN` or infinite, the result is `NaN`.
 	**/
 	static function atan(v:Float):Float;
 
@@ -156,8 +155,8 @@ extern class Math
 		Returns the trigonometric arc tangent whose tangent is the quotient of
 		two specified numbers, in radians.
 
-		If parameter `x` or `y`  is NaN, NEGATIVE_INFINITY or POSITIVE_INFINITY,
-		the result is NaN.
+		If parameter `x` or `y`  is `NaN`, `NEGATIVE_INFINITY` or `POSITIVE_INFINITY`,
+		the result is `NaN`.
 	**/
 	static function atan2(y:Float, x:Float):Float;
 
@@ -166,9 +165,9 @@ extern class Math
 
 		exp(1.0) is approximately 2.718281828459.
 
-		If `v` is POSITIVE_INFINITY, the result is POSITIVE_INFINITY.
-		If `v` is NEGATIVE_INFINITY, the result is 0.0.
-		If `v` is NaN, the result is NaN.
+		If `v` is `POSITIVE_INFINITY`, the result is `POSITIVE_INFINITY`.
+		If `v` is `NEGATIVE_INFINITY`, the result is `0.0`.
+		If `v` is `NaN`, the result is `NaN`.
 	**/
 	static function exp(v:Float):Float;
 
@@ -178,10 +177,10 @@ extern class Math
 		This is the mathematical inverse operation of exp,
 		i.e. `log(exp(v)) == v` always holds.
 
-		If `v` is negative (including NEGATIVE_INFINITY) or NaN, the result
-		is NaN.
-		If `v` is POSITIVE_INFINITY, the result is POSITIVE_INFINITY.
-		If `v` is 0.0, the result is NEGATIVE_INFINITY.
+		If `v` is negative (including `NEGATIVE_INFINITY`) or `NaN`, the result
+		is `NaN`.
+		If `v` is `POSITIVE_INFINITY`, the result is `POSITIVE_INFINITY`.
+		If `v` is `0.0`, the result is `NEGATIVE_INFINITY`.
 	**/
 	static function log(v:Float):Float;
 
@@ -193,34 +192,36 @@ extern class Math
 	/**
 		Returns the square root of `v`.
 
-		If `v` is negative (including NEGATIVE_INFINITY) or NaN, the result
-		is NaN.
-		If `v` is POSITIVE_INFINITY, the result is POSITIVE_INFINITY.
-		If `v` is 0.0, the result is 0.0.
+		If `v` is negative (including `NEGATIVE_INFINITY`) or `NaN`, the result
+		is `NaN`.
+		If `v` is `POSITIVE_INFINITY`, the result is `POSITIVE_INFINITY`.
+		If `v` is `0.0`, the result is `0.0`.
 	**/
 	static function sqrt(v:Float):Float;
 
 	/**
 		Rounds `v` to the nearest integer value.
 
-		If `v` is outside of the signed Int32 range, or is NaN, NEGATIVE_INFINITY
-		or POSITIVE_INFINITY, the result is unspecified.
+		Ties are rounded up, so that `0.5` becomes `1` and `-0.5` becomes `0`.
+
+		If `v` is outside of the signed `Int32` range, or is `NaN`, `NEGATIVE_INFINITY`
+		or `POSITIVE_INFINITY`, the result is unspecified.
 	**/
 	static function round(v:Float):Int;
 
 	/**
 		Returns the largest integer value that is not greater than `v`.
 
-		If `v` is outside of the signed Int32 range, or is NaN, NEGATIVE_INFINITY
-		or POSITIVE_INFINITY, the result is unspecified.
+		If `v` is outside of the signed `Int32` range, or is `NaN`, `NEGATIVE_INFINITY`
+		or `POSITIVE_INFINITY`, the result is unspecified.
 	**/
 	static function floor(v:Float):Int;
 
 	/**
 		Returns the smallest integer value that is not less than `v`.
 
-		If `v` is outside of the signed Int32 range, or is NaN, NEGATIVE_INFINITY
-		or POSITIVE_INFINITY, the result is unspecified.
+		If `v` is outside of the signed `Int32` range, or is `NaN`, `NEGATIVE_INFINITY`
+		or `POSITIVE_INFINITY`, the result is unspecified.
 	**/
 	static function ceil(v:Float):Int;
 
@@ -230,19 +231,19 @@ extern class Math
 	**/
 	static function random() : Float;
 
-	#if ((flash9 && !as3) || cpp)
+	#if ((flash && !as3) || cpp || eval)
 	/**
-		Returns the largest integer value that is not greater than `v`, as a Float.
+		Returns the largest integer value that is not greater than `v`, as a `Float`.
 
-		If `v` is is NaN, NEGATIVE_INFINITY or POSITIVE_INFINITY,
+		If `v` is is `NaN`, `NEGATIVE_INFINITY` or `POSITIVE_INFINITY`,
 		the result is unspecified.
 	**/
 	static function ffloor( v : Float ) : Float;
 
 	/**
-		Returns the smallest integer value that is not less than `v`, as a Float.
+		Returns the smallest integer value that is not less than `v`, as a `Float`.
 
-		If `v` is is NaN, NEGATIVE_INFINITY or POSITIVE_INFINITY,
+		If `v` is is `NaN`, `NEGATIVE_INFINITY` or `POSITIVE_INFINITY`,
 		the result is unspecified.
 	**/
 	static function fceil( v : Float ) : Float;
@@ -250,7 +251,9 @@ extern class Math
 	/**
 		Rounds `v` to the nearest integer value, as a Float.
 
-		If `v` is is NaN, NEGATIVE_INFINITY or POSITIVE_INFINITY,
+		Ties are rounded up, so that `0.5` becomes `1` and `-0.5` becomes `0`.
+
+		If `v` is is `NaN`, `NEGATIVE_INFINITY` or `POSITIVE_INFINITY`,
 		the result is unspecified.
 	**/
 	static function fround( v : Float ) : Float;
@@ -275,22 +278,23 @@ extern class Math
 	/**
 		Tells if `f` is a finite number.
 
-		If `f` is POSITIVE_INFINITY, NEGATIVE_INFINITY or NaN, the result
-		is false, otherwise the result is true.
+		If `f` is `POSITIVE_INFINITY`, `NEGATIVE_INFINITY` or `NaN`, the result
+		is `false`, otherwise the result is `true`.
 	**/
 	static function isFinite( f : Float ) : Bool;
 
 	/**
 		Tells if `f` is not a valid number.
 
-		If `f` is NaN, the result is true, otherwise the result is false.
-		In particular, both POSITIVE_INFINITY and NEGATIVE_INFINITY are
-		not considered NaN.
+		If `f` is `NaN`, the result is `true`, otherwise the result is `false`.
+		In particular, both `POSITIVE_INFINITY` and `NEGATIVE_INFINITY` are
+		not considered `NaN`.
 	**/
 	static function isNaN( f : Float ) : Bool;
 
+	#if !eval
 	private static function __init__() : Void untyped {
-	#if flash9
+	#if flash
 		NaN = __global__["Number"].NaN;
 		NEGATIVE_INFINITY = __global__["Number"].NEGATIVE_INFINITY;
 		POSITIVE_INFINITY = __global__["Number"].POSITIVE_INFINITY;
@@ -302,26 +306,21 @@ extern class Math
 	#end
 		Math.isFinite = function(i) {
 			return
-			#if flash9
+			#if flash
 			__global__["isFinite"](i);
-			#elseif flash
-			_global["isFinite"](i);
 			#else
 			false;
 			#end
 		};
 		Math.isNaN = function(i) {
 			return
-			#if flash9
+			#if flash
 			__global__["isNaN"](i);
-			#elseif flash
-			_global["isNaN"](i);
 			#else
 			false;
 			#end
 		};
 	}
+	#end
 
 }
-
-

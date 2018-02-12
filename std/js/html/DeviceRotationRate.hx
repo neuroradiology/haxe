@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,22 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\DeviceMotionEvent.webidl. Do not edit!
+
 package js.html;
 
+/**
+	A `DeviceRotationRate` object provides information about the rate at which the device is rotating around all three axes.
+
+	Documentation [DeviceRotationRate](https://developer.mozilla.org/en-US/docs/Web/API/DeviceRotationRate) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DeviceRotationRate$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceRotationRate>
+**/
 @:native("DeviceRotationRate")
 extern class DeviceRotationRate
 {
 	var alpha(default,null) : Float;
-
 	var beta(default,null) : Float;
-
 	var gamma(default,null) : Float;
-
+	
 }

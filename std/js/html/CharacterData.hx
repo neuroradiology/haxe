@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,29 +20,62 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\CharacterData.webidl. Do not edit!
+
 package js.html;
 
-/** <code><a title="En/DOM/Text" rel="internal" href="https://developer.mozilla.org/En/DOM/Text">Text</a></code>, <code><a title="En/DOM/Comment" rel="internal" href="https://developer.mozilla.org/En/DOM/Comment">Comment</a></code>, and <code><a title="en/DOM/CDATASection" rel="internal" href="/api/js/html/CDATASection">CDATASection</a></code> all implement CharacterData, which in turn also implements <code><a class="internal" title="En/DOM/Node" rel="internal" href="/api/js/html/Node">Node</a></code>. See <code>Node</code> for the remaining methods, properties, and constants.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/En/DOM/CharacterData">MDN</a>. */
+/**
+	The `CharacterData` abstract interface represents a `Node` object that contains characters. This is an abstract interface, meaning there aren't any object of type `CharacterData`: it is implemented by other interfaces, like `Text`, `Comment`, or `ProcessingInstruction` which aren't abstract.
+
+	Documentation [CharacterData](https://developer.mozilla.org/en-US/docs/Web/API/CharacterData) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CharacterData$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CharacterData>
+**/
 @:native("CharacterData")
 extern class CharacterData extends Node
 {
-	/** Setter throws DOMException. */
+	
+	/**
+		Is a `DOMString` representing the textual data contained in this object.
+	**/
 	var data : String;
-
+	
+	/**
+		Returns an `unsigned long` representing the size of the string contained in `CharacterData.data`.
+	**/
 	var length(default,null) : Int;
-
+	var previousElementSibling(default,null) : Element;
+	var nextElementSibling(default,null) : Element;
+	
+	/** @throws DOMError */
+	
+	/**
+		Returns a `DOMString` containing the part of `CharacterData.data` of the specified length and starting at the specified offset.
+	**/
+	function substringData( offset : Int, count : Int ) : String;
+	/** @throws DOMError */
+	
+	/**
+		Appends the given `DOMString` to the `CharacterData.data` string; when this method returns, `data` contains the concatenated `DOMString`.
+	**/
 	function appendData( data : String ) : Void;
-
-	function deleteData( offset : Int, length : Int ) : Void;
-
+	/** @throws DOMError */
+	
+	/**
+		Inserts the specified characters, at the specified offset, in the `CharacterData.data` string; when this method returns, `data` contains the modified `DOMString`.
+	**/
 	function insertData( offset : Int, data : String ) : Void;
-
+	/** @throws DOMError */
+	
+	/**
+		Removes the specified amount of characters, starting at the specified offset, from the `CharacterData.data` string; when this method returns, `data` contains the shortened `DOMString`.
+	**/
+	function deleteData( offset : Int, count : Int ) : Void;
+	/** @throws DOMError */
+	
+	/**
+		Replaces the specified amount of characters, starting at the specified offset, with the specified `DOMString`; when this method returns, `data` contains the modified `DOMString`.
+	**/
+	function replaceData( offset : Int, count : Int, data : String ) : Void;
 	function remove() : Void;
-
-	function replaceData( offset : Int, length : Int, data : String ) : Void;
-
-	function substringData( offset : Int, length : Int ) : String;
-
 }

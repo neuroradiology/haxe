@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,14 +26,16 @@ package haxe.format;
 
 	This class is used by `haxe.Json` when native JSON implementation
 	is not available.
+
+	@see https://haxe.org/manual/std-Json-encoding.html
 **/
 class JsonPrinter {
 
 	/**
-		Encodes `o` value and returns the resulting JSON string.
+		Encodes `o`'s value and returns the resulting JSON string.
 
 		If `replacer` is given and is not null, it is used to retrieve
-		actual object to be encoded. The `replacer` function two parameters,
+		actual object to be encoded. The `replacer` function takes two parameters,
 		the key and the value being encoded. Initial key value is an empty string.
 
 		If `space` is given and is not null, the result will be pretty-printed.
@@ -45,7 +47,7 @@ class JsonPrinter {
 		return printer.buf.toString();
 	}
 
-	var buf : #if flash9 flash.utils.ByteArray #else StringBuf #end;
+	var buf : #if flash flash.utils.ByteArray #else StringBuf #end;
 	var replacer : Dynamic -> Dynamic -> Dynamic;
 	var indent:String;
 	var pretty:Bool;
@@ -57,7 +59,7 @@ class JsonPrinter {
 		this.pretty = space != null;
 		this.nind = 0;
 
-		#if flash9
+		#if flash
 		buf = new flash.utils.ByteArray();
 		buf.endian = flash.utils.Endian.BIG_ENDIAN;
 		buf.position = 0;
@@ -82,7 +84,7 @@ class JsonPrinter {
 		case TObject:
 			objString(v);
 		case TInt:
-			add(v);
+			add(#if as3 Std.string(v) #else v #end);
 		case TFloat:
 			add(Math.isFinite(v) ? v : 'null');
 		case TFunction:
@@ -120,7 +122,7 @@ class JsonPrinter {
 				var v : Date = v;
 				quote(v.toString());
 			} else
-				#if flash9
+				#if flash
 				classString(v);
 				#else
 				objString(v);
@@ -129,14 +131,14 @@ class JsonPrinter {
 			var i : Dynamic = Type.enumIndex(v);
 			add(i);
 		case TBool:
-			add(#if php (v ? 'true' : 'false') #else v #end);
+			add(#if (php || as3) (v ? 'true' : 'false') #else v #end);
 		case TNull:
 			add('null');
 		}
 	}
 
 	@:extern inline function addChar(c:Int) {
-		#if flash9
+		#if flash
 		buf.writeByte(c);
 		#else
 		buf.addChar(c);
@@ -144,7 +146,7 @@ class JsonPrinter {
 	}
 
 	@:extern inline function add(v:String) {
-		#if flash9
+		#if flash
 		// argument is not always a string but will be automatically casted
 		buf.writeUTFBytes(v);
 		#else
@@ -152,7 +154,7 @@ class JsonPrinter {
 		#end
 	}
 
-	#if flash9
+	#if flash
 	function classString ( v : Dynamic ) {
 		fieldsString(v,Type.getInstanceFields(Type.getClass(v)));
 	}
@@ -209,7 +211,7 @@ class JsonPrinter {
 			case 8: add('\\b');
 			case 12: add('\\f');
 			default:
-				#if flash9
+				#if flash
 				if( c >= 128 ) add(String.fromCharCode(c)) else addChar(c);
 				#else
 				addChar(c);

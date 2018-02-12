@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -65,11 +65,10 @@ class FileSystem {
 			return new File(relPath).getCanonicalPath();
 		} catch (e: java.io.IOException) {
 			throw new java.lang.RuntimeException(e);
-			return null;
 		}
 	}
 
-	public static function absPath ( relPath : String ) : String {
+	public static function absolutePath ( relPath : String ) : String {
 		if (haxe.io.Path.isAbsolute(relPath)) return relPath;
 		return haxe.io.Path.join([Sys.getCwd(), relPath]);
 	}
@@ -84,7 +83,8 @@ class FileSystem {
 
 	public static function createDirectory( path : String ) : Void
 	{
-		if (!new File(path).mkdirs())
+		var f = new File(path);
+		if (!f.isDirectory() && !f.mkdirs())
 			throw "Cannot create dir " + path;
 	}
 

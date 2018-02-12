@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,15 +19,17 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+import cs.system.text.StringBuilder;
+
 @:coreApi
 class StringBuf {
 
-	private var b : cs.StringBuilder;
+	private var b : StringBuilder;
 
 	public var length(get,never) : Int;
 
 	public inline function new() : Void {
-		b = new cs.StringBuilder();
+		b = new StringBuilder();
 	}
 
 	inline function get_length() : Int {

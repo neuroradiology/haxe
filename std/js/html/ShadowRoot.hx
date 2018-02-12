@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,31 +20,35 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\ShadowRoot.webidl. Do not edit!
+
 package js.html;
 
+/**
+	The `ShadowRoot` interface of the Shadow DOM API is the root node of a DOM subtree that is rendered separately from a document's main DOM tree.
+
+	Documentation [ShadowRoot](https://developer.mozilla.org/en-US/docs/Web/API/ShadowRoot) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ShadowRoot$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ShadowRoot>
+**/
 @:native("ShadowRoot")
 extern class ShadowRoot extends DocumentFragment
 {
-	var activeElement(default,null) : Element;
-
-	var applyAuthorStyles : Bool;
-
-	/** Setter throws DOMException. */
+	
+	/**
+		The DOM tree inside the `ShadowRoot`.
+	**/
 	var innerHTML : String;
-
-	var resetStyleInheritance : Bool;
-
-	function new( host : Element ) : Void;
-
-	function getElementById( elementId : String ) : Element;
-
-	function getElementsByClassName( className : String ) : NodeList;
-
-	function getElementsByTagName( tagName : String ) : NodeList;
-
-	function getElementsByTagNameNS( ?namespaceURI : String, localName : String ) : NodeList;
-
-	function getSelection() : DOMSelection;
-
+	
+	/**
+		A DOM element to which the `ShadowRoot` is attatched.
+	**/
+	var host(default,null) : Element;
+	var olderShadowRoot(default,null) : ShadowRoot;
+	var applyAuthorStyles : Bool;
+	var styleSheets(default,null) : StyleSheetList;
+	
+	function getElementsByTagName( localName : String ) : HTMLCollection;
+	function getElementsByTagNameNS( namespace_ : String, localName : String ) : HTMLCollection;
+	function getElementsByClassName( classNames : String ) : HTMLCollection;
 }

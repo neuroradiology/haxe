@@ -1,22 +1,36 @@
-
+/*
+ * Copyright (C)2005-2018 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
 package python.lib;
 
-import python.lib.Tuple;
-
+import python.Tuple;
 
 private abstract Choice <A,B>(Dynamic) {
 	@:from public static inline function fromA <A,B>(x:A):Choice<A,B> return cast x;
 	@:from public static inline function fromB <A,B>(x:B):Choice<A,B> return cast x;
 }
 
-typedef TODO = Dynamic;
-
 typedef Pattern = Choice<String, Regex>;
 
 typedef Repl = Choice<String, MatchObject->String>;
-
-
-
 
 extern class MatchObject
 {
@@ -42,7 +56,7 @@ extern class MatchObject
 	@:overload(function (x:String):Int {})
 	public function end (?i:Int = 0):Int;
 
-	public function span (?i:Int):Tup2<Int, Int>;
+	public function span (?i:Int):Tuple2<Int, Int>;
 
 
 	public inline function groupById(s:String):String {
@@ -140,8 +154,6 @@ extern class Re
 	public static var U:Int;
 	public static var UNICODE:Int;
 
-
-
 	public static function compile (pattern:String, ?flags:Int = 0):Regex;
 
 	public static function match (pattern:Pattern, string:String, flags:Int = 0):Null<MatchObject>;
@@ -154,7 +166,6 @@ extern class Re
 	{
 		return python.Syntax.field(pattern, "findall")(string, flags);
 	}
-
 
 	public static inline function findallString(pattern:Pattern, string:String,	flags:Int=0):Array<String>
 	{
@@ -173,13 +184,12 @@ extern class Re
 
 	public static function finditer(pattern:Pattern, string:String,   flags:Int=0):NativeIterator<MatchObject>;
 
-
 	@:overload(function (pattern:Pattern, repl:String, string:String,  ?count:Int=0, ?flags:Int=0):String {})
 	public static function sub(pattern:Pattern, repl:MatchObject->String, string:String,  ?count:Int=0, ?flags:Int=0):String;
 
 	public static function subn(pattern:Pattern, repl:Repl, string:String, count:Int=0, flags:Int=0):String;
 
-	public static function escape(string:String):TODO;
+	public static function escape(string:String):String;
 
 	public static function purge():Void;
 }

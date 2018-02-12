@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,27 +20,54 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\DOMTokenList.webidl. Do not edit!
+
 package js.html;
 
-/** This type represents a set of space-separated tokens. Commonly returned by <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/element.classList">HTMLElement.classList</a></code>
-, HTMLLinkElement.relList, HTMLAnchorElement.relList or HTMLAreaElement.relList. It is indexed beginning with 0 as with JavaScript arrays. DOMTokenList is always case-sensitive.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/DOMTokenList">MDN</a>. */
+/**
+	The `DOMTokenList` interface represents a set of space-separated tokens. Such a set is returned by `Element.classList`, `HTMLLinkElement.relList`, `HTMLAnchorElement.relList` or `HTMLAreaElement.relList`. It is indexed beginning with `0` as with JavaScript `Array` objects. `DOMTokenList` is always case-sensitive.
+
+	Documentation [DOMTokenList](https://developer.mozilla.org/en-US/docs/Web/API/DOMTokenList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMTokenList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMTokenList>
+**/
 @:native("DOMTokenList")
 extern class DOMTokenList implements ArrayAccess<String>
 {
+	
+	/**
+		Is an `integer` representing the number of objects stored in the object.
+	**/
 	var length(default,null) : Int;
-
-	function add( tokens : String ) : Void;
-
-	function contains( token : String ) : Bool;
-
+	var value : String;
+	
+	
+	/**
+		Returns an item in the list by its index (or undefined if the number is greater than or equal to the length of the list, prior to `7.0` returned null)
+	**/
 	function item( index : Int ) : String;
-
-	function remove( tokens : String ) : Void;
-
-	function toString() : String;
-
+	/** @throws DOMError */
+	
+	/**
+		Returns `true` if the underlying string contains token, otherwise `false`
+	**/
+	function contains( token : String ) : Bool;
+	/** @throws DOMError */
+	
+	/**
+		Adds token to the underlying string
+	**/
+	function add( tokens : haxe.extern.Rest<String> ) : Void;
+	/** @throws DOMError */
+	
+	/**
+		Removes token from the underlying string
+	**/
+	function remove( tokens : haxe.extern.Rest<String> ) : Void;
+	/** @throws DOMError */
+	
+	/**
+		Removes token from string and returns false. If token doesn't exist it's added and the function returns true
+	**/
 	function toggle( token : String, ?force : Bool ) : Bool;
-
 }

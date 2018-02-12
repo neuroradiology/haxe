@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,15 +21,16 @@
  */
 package cs.internal;
 import cs.system.Type;
+import haxe.ds.Vector;
 private typedef StdType = std.Type;
 
 @:keep @:native('haxe.lang.HxObject')
-private class HxObject implements IHxObject
+class HxObject implements IHxObject
 {
 }
 
 @:keep @:native('haxe.lang.IHxObject')
-private interface IHxObject
+interface IHxObject
 {
 }
 
@@ -37,7 +38,7 @@ private interface IHxObject
 @:meta(System.Serializable)
 #end
 @:keep @:native('haxe.lang.DynamicObject')
-private class DynamicObject extends HxObject implements Dynamic
+class DynamicObject extends HxObject implements Dynamic
 {
 	@:skipReflection public function toString():String
 	{
@@ -63,35 +64,50 @@ private class DynamicObject extends HxObject implements Dynamic
 	}
 }
 
+#if !erase_generics
 @:keep @:native('haxe.lang.IGenericObject') interface IGenericObject
 {
 }
 
-@:native('haxe.lang.Enum')
-@:keep @:skipCtor
+@:nativeGen @:keep @:native('haxe.lang.GenericInterface') class GenericInterface extends cs.system.Attribute
+{
+	@:readOnly public var generic(default,never):cs.system.Type;
+
+	public function new(generic)
+	{
+		super();
+		untyped this.generic = generic;
+	}
+}
+#end
+
+@:keep @:native('haxe.lang.Enum') @:nativeGen
 #if core_api_serialize
 @:meta(System.Serializable)
 #end
-private class Enum
-{
-	@:readOnly private var index:Int;
-	@:readOnly private var params:Array<{}>;
+class HxEnum {
+	@:readOnly var _hx_index(default,never):Int;
 
-	public function new(index:Int, params:Array<{}>)
-	{
-		this.index = index;
-		this.params = params;
+	@:protected function new(index:Int) {
+		untyped this._hx_index = index;
 	}
-	@:final public function getTag():String
-	{
-		var cl:Dynamic = StdType.getClass(this);
-		return cl.constructs[index];
+
+	public function getTag():String {
+		return throw 'Not Implemented';
 	}
-	public function toString():String
-	{
-		if (params == null || params.length == 0) return getTag();
+
+	public function getParams():Array<{}> {
+		return [];
+	}
+
+	public function toString():String {
+		return getTag();
+	}
+
+	@:protected static function paramsToString(tag:String, params:Vector<Dynamic>):String {
 		var ret = new StringBuf();
-		ret.add(getTag()); ret.add("(");
+		ret.add(tag);
+		ret.add("(");
 		var first = true;
 		for (p in params)
 		{
@@ -104,38 +120,16 @@ private class Enum
 		ret.add(")");
 		return ret.toString();
 	}
-	public function Equals(obj:Dynamic)
-	{
-		if (obj == this) //we cannot use == as .Equals !
-			return true;
-		var obj:Enum = cast obj;
-		var ret = obj != null && Std.is(obj, StdType.getClass(this)) && obj.index == this.index;
-		if (!ret)
-			return false;
-		if (obj.params == this.params)
-			return true;
-		var len = 0;
-		if (obj.params == null || this.params == null || (len = this.params.length) != obj.params.length)
-			return false;
-		for (i in 0...len)
-		{
-			if (!StdType.enumEq(obj.params[i], this.params[i]))
-				return false;
-		}
-		return true;
-	}
 
-	public function GetHashCode():Int
-	{
-		var h = 19;
+	@:protected static function paramsGetHashCode(index:Int, params:Vector<Dynamic>):Int {
+		var h:Int = 19;
 		if (params != null) for (p in params)
 		{
 			h = h * 31;
 			if (p != null)
-				h += untyped p.GetHashCode();
+				untyped h += p.GetHashCode();
 		}
 		h += index;
 		return h;
 	}
-
 }

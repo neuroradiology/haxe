@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,18 +20,30 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\SVGAltGlyphElement.webidl. Do not edit!
+
 package js.html.svg;
 
-/** The <code>altGlyph</code> element allows sophisticated selection of the glyphs used to render its child character data.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/SVG/Element/altGlyph">MDN</a>. */
+/**
+	  
+
+	Documentation [SVGAltGlyphElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGAltGlyphElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGAltGlyphElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAltGlyphElement>
+**/
 @:native("SVGAltGlyphElement")
 extern class AltGlyphElement extends TextPositioningElement
 {
-	/** Setter throws DOMException. */
-	var format : String;
-
-	/** Setter throws DOMException. */
+	
+	/**
+		It corresponds to the attribute `glyphRef` on the given element. It's data type is 'String'. It defines the glyph identifier, whose format is dependent on the ‘format’ of the given font.
+	**/
 	var glyphRef : String;
-
+	
+	/**
+		It corresponds to the attribute  `format` on the given element. It's data type is 'String'. This property specifies the format of the given font.
+	**/
+	var format : String;
+	var href(default,null) : AnimatedString;
+	
 }

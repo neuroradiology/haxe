@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,33 +20,47 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\MessageEvent.webidl. Do not edit!
+
 package js.html;
 
-/** <div><strong>DRAFT</strong>
-<div>This page is not complete.</div>
-</div>
+/**
+	A `MessageEvent` is the interface representing a message received by a target, being a `WebSocket` or a WebRTC `RTCDataChannel`
 
-<p></p>
-<p>A <code>MessageEvent</code> is sent to clients using WebSockets when data is received from the server. This is delivered to the listener indicated by the <code>WebSocket</code> object's <code>onmessage</code> attribute.</p><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/WebSockets/WebSockets_reference/MessageEvent">MDN</a>. */
+	Documentation [MessageEvent](https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent>
+**/
 @:native("MessageEvent")
 extern class MessageEvent extends Event
 {
-	/** The data from the server. */
+	
+	/**
+		Returns a `DOMString`, `Blob` or an `ArrayBuffer` containing the data send by the emitter.
+	**/
 	var data(default,null) : Dynamic;
-
-	var lastEventId(default,null) : String;
-
+	
+	/**
+		Is a `DOMString` …
+	**/
 	var origin(default,null) : String;
-
-	var ports(default,null) : Array<Dynamic>;
-
-	var source(default,null) : DOMWindow;
-
-	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
-
-	@:overload( function( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, dataArg : Dynamic, originArg : String, lastEventIdArg : String, sourceArg : DOMWindow, messagePorts : Array<Dynamic> ) :Void {} )
-	function initMessageEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, dataArg : Dynamic, originArg : String, lastEventIdArg : String, sourceArg : DOMWindow, transferables : Array<Dynamic> ) : Void;
-
+	var lastEventId(default,null) : String;
+	
+	/**
+		…
+	**/
+	var source(default,null) : haxe.extern.EitherType<Window,MessagePort>;
+	
+	/**
+		…
+	**/
+	var ports(default,null) : MessagePortList;
+	
+	/** @throws DOMError */
+	function new( type : String, ?eventInitDict : MessageEventInit ) : Void;
+	
+	/**
+		… Do not use this anymore: use the `MessageEvent.MessageEvent` constructor instead.
+	**/
+	function initMessageEvent( type : String, bubbles : Bool, cancelable : Bool, data : Dynamic, origin : String, lastEventId : String, source : haxe.extern.EitherType<Window,MessagePort>, ports : Array<MessagePort> ) : Void;
 }

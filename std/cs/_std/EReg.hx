@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,7 +24,7 @@ import cs.system.text.regularexpressions.Match;
 import cs.system.text.regularexpressions.RegexOptions;
 import cs.system.text.regularexpressions.*;
 
-class EReg {
+@:coreApi @:final class EReg {
 
 	private var regex : Regex;
 	private var m : Match;
@@ -129,5 +129,9 @@ class EReg {
 		if (!isGlobal && offset > 0 && offset < s.length)
 			buf.add(s.substr(offset));
 		return buf.toString();
+	}
+
+	public static inline function escape( s : String ) : String {
+		return Regex.Escape(s);
 	}
 }

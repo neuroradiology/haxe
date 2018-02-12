@@ -1,17 +1,23 @@
 package flash.display3D;
 
 @:final extern class Context3D extends flash.events.EventDispatcher {
-	var driverInfo(default,null) : String;
+	var backBufferHeight(default,never) : Int;
+	var backBufferWidth(default,never) : Int;
+	var driverInfo(default,never) : String;
 	var enableErrorChecking : Bool;
-	@:require(flash12) var profile(default,null) : String;
+	var maxBackBufferHeight : Int;
+	var maxBackBufferWidth : Int;
+	@:require(flash12) var profile(default,never) : String;
+	var totalGPUMemory(default,never) : Float;
 	function clear(red : Float = 0, green : Float = 0, blue : Float = 0, alpha : Float = 1, depth : Float = 1, stencil : UInt = 0, mask : UInt = 0xFFFFFFFF) : Void;
-	function configureBackBuffer(width : Int, height : Int, antiAlias : Int, enableDepthAndStencil : Bool = true, wantsBestResolution : Bool = false) : Void;
+	function configureBackBuffer(width : Int, height : Int, antiAlias : Int, enableDepthAndStencil : Bool = true, wantsBestResolution : Bool = false, wantsBestResolutionOnBrowserZoom : Bool = false) : Void;
 	function createCubeTexture(size : Int, format : Context3DTextureFormat, optimizeForRenderToTexture : Bool, streamingLevels : Int = 0) : flash.display3D.textures.CubeTexture;
 	function createIndexBuffer(numIndices : Int, ?bufferUsage : Context3DBufferUsage) : IndexBuffer3D;
 	function createProgram() : Program3D;
 	@:require(flash11_8) function createRectangleTexture(width : Int, height : Int, format : Context3DTextureFormat, optimizeForRenderToTexture : Bool) : flash.display3D.textures.RectangleTexture;
 	function createTexture(width : Int, height : Int, format : Context3DTextureFormat, optimizeForRenderToTexture : Bool, streamingLevels : Int = 0) : flash.display3D.textures.Texture;
 	function createVertexBuffer(numVertices : Int, data32PerVertex : Int, ?bufferUsage : Context3DBufferUsage) : VertexBuffer3D;
+	function createVideoTexture() : flash.display3D.textures.VideoTexture;
 	function dispose(recreate : Bool = true) : Void;
 	function drawToBitmapData(destination : flash.display.BitmapData) : Void;
 	function drawTriangles(indexBuffer : IndexBuffer3D, firstIndex : Int = 0, numTriangles : Int = -1) : Void;
@@ -32,4 +38,5 @@ package flash.display3D;
 	function setStencilReferenceValue(referenceValue : UInt, readMask : UInt = 255, writeMask : UInt = 255) : Void;
 	function setTextureAt(sampler : Int, texture : flash.display3D.textures.TextureBase) : Void;
 	function setVertexBufferAt(index : Int, buffer : VertexBuffer3D, bufferOffset : Int = 0, ?format : Context3DVertexBufferFormat) : Void;
+	static var supportsVideoTexture(default,never) : Bool;
 }

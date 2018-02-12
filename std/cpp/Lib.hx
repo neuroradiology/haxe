@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,19 +21,13 @@
  */
 package cpp;
 
-#if macro
-import haxe.macro.Context;
-import haxe.macro.Type;
-import haxe.macro.Expr;
-#end
-
-using cpp.NativeString;
-using cpp.RawConstPointer;
-using cpp.Char;
-
+/**
+	Platform-specific Cpp Library. Provides some platform-specific functions
+	for the C++ target, such as conversion from Haxe types to native types
+	and vice-versa.
+**/
 class Lib {
 
-   #if !macro
 	/**
 		Load and return a Cpp primitive from a DLL library.
 	**/
@@ -46,22 +40,24 @@ class Lib {
 	}
 
 	/**
-		Load and return a Cpp primitive from a DLL library.
+		Unloaded all dynamic libraries in reverse order of loading.
+		Returns the number of libraries unloaded.
 	**/
-	@:extern public static inline function getProcAddress( lib : String, prim : String, quietFail=false ) : Dynamic {
-		return untyped __global__.__hxcpp_cast_get_proc_address(lib,prim,quietFail);
+	public static function unloadAllLibraries() : Int {
+		return untyped __global__.__hxcpp_unload_all_libraries();
 	}
 
 	public static function _loadPrime( lib : String, prim : String, signature : String, quietFail = false ) : Dynamic {
-		var factory:Function< RawConstPointer<Char> -> RawPointer<Object> > = getProcAddress(lib, prim + "__prime", quietFail);
-      if (factory!=null)
-      {
-         var func:Dynamic = factory.call(signature.raw());
-         if (func==null && !quietFail)
-            throw '$prim does not have signature $signature';
-         return func;
-      }
-      return null;
+		var factory:Callable< ConstCharStar -> Object > =
+		untyped __global__.__hxcpp_cast_get_proc_address(lib, prim + "__prime", quietFail);
+		if (factory!=null)
+		{
+			var func:Dynamic = factory.call(signature);
+			if (func==null && !quietFail)
+				throw '$prim does not have signature $signature';
+			return func;
+		}
+		return null;
 	}
 
 
@@ -69,7 +65,7 @@ class Lib {
 		Tries to load, and always returns a valid function, but the function may throw
 		if called.
 	**/
-	public static function loadLazy(lib,prim,nargs) : Dynamic {
+	public static function loadLazy(lib:String, prim:String, nargs:Int) : Dynamic {
 		try {
 			return untyped __global__.__loadprim(lib,prim,nargs);
 		} catch( e : Dynamic ) {
@@ -85,9 +81,39 @@ class Lib {
 		return null;
 	}
 
-	public static function rethrow(inExp:Dynamic) { throw inExp; }
+	@:extern  @:noDebug @:native("HX_STACK_DO_RETHROW")
+	static function do_rethrow(inExp:Dynamic) { throw inExp; }
 
-	public static function stringReference(inExp:Dynamic) { throw inExp; }
+	@:noDebug #if(!cppia) inline #end
+	public static function rethrow(inExp:Dynamic) { do_rethrow(inExp); }
+
+	public static function stringReference(inBytes:haxe.io.Bytes) : String
+	{
+		var result:String = "";
+		untyped __global__.__hxcpp_string_of_bytes(inBytes.b, result, 0, 0, true);
+		return result;
+	}
+
+	public static function pushDllSearchPath(inPath:String) : Void
+		untyped __global__.__hxcpp_push_dll_path(inPath);
+
+	public static function getDllExtension() : String
+		return untyped __global__.__hxcpp_get_dll_extension();
+
+	public static function getBinDirectory() : String
+		return untyped __global__.__hxcpp_get_bin_dir();
+
+	/**
+		Returns bytes referencing the content of a string.
+		Use with extreme caution - changing constant strings will crash.
+		Changing one string can cause others to change unexpectedly.
+		Only really safe if you are using it read-only or if it comes from stringReference above
+	**/
+	public inline static function bytesReference( s : String ) : haxe.io.Bytes {
+		var bytes = new haxe.io.BytesData();
+		untyped bytes.__unsafeStringReference(s);
+		return haxe.io.Bytes.ofData(bytes);
+	}
 
 	/**
 		Print the specified value on the default output.
@@ -118,36 +144,9 @@ class Lib {
 		untyped __global__.__hxcpp_println(v);
 	}
 
-   #else
-   static function codeToType(code:String) : String
-   {
-      switch(code)
-      {
-         case "b" : return "Bool";
-         case "i" : return "Int";
-         case "d" : return "Float";
-         case "f" : return "cpp.Float32";
-         case "s" : return "String";
-         case "o" : return "cpp.Object";
-         case "v" : return "cpp.Void";
-         case "c" : return "cpp.RawConstPtr<cpp.Char> ";
-         default:
-            throw "Unknown signature type :" + code;
-      }
-   }
-   #end
-
-   public static macro function loadPrime(inModule:String, inName:String, inSig:String,inAllowFail:Bool = false)
-   {
-      var parts = inSig.split("");
-      if (parts.length<1)
-         throw "Invalid function signature " + inSig;
-      var typeString = parts.length==1 ? "Void" : codeToType(parts.shift());
-      for(p in parts)
-         typeString += "->" + codeToType(p);
-      typeString = "cpp.Function<" + typeString + ">";
-      var expr = 'new $typeString(cpp.Lib._loadPrime("$inModule","$inName","$inSig",$inAllowFail))';
-      return Context.parse( expr, Context.currentPos() );
-   }
+	public static function setFloatFormat(inFormat:String):Void
+	{
+		untyped __global__.__hxcpp_set_float_format(inFormat);
+	}
 
 }
