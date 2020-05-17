@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -44,7 +44,7 @@ let run types =
 	let get_cls t =
 		match follow t with
 		| TInst(cl,_) -> cl
-		| _ -> assert false
+		| _ -> Globals.die "" __LOC__
 	in
 
 	let iter_types (nt,t) =

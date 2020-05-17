@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -68,10 +68,10 @@ let configure gen (is_dynamic:texpr->Type.tfield_access->bool) (change_expr:texp
 		(* class types *)
 		| TField(fexpr, f) when is_nondynamic_tparam fexpr f ->
 			(match follow fexpr.etype with
-				| TInst({ cl_kind = KTypeParameter(tl) }, _) ->
-					let t = List.find (fun t -> not (is_dynamic { fexpr with etype = t } f)) tl in
+				| TInst( ({ cl_kind = KTypeParameter(tl) } as tp_cl), tp_tl) ->
+					let t = apply_params tp_cl.cl_params tp_tl (List.find (fun t -> not (is_dynamic { fexpr with etype = t } f)) tl) in
 					{ e with eexpr = TField(mk_cast t (run fexpr), f) }
-				| _ -> assert false)
+				| _ -> Globals.die "" __LOC__)
 
 		| TField(fexpr, f) when is_some (anon_class fexpr.etype) ->
 			let decl = get (anon_class fexpr.etype) in
@@ -86,10 +86,10 @@ let configure gen (is_dynamic:texpr->Type.tfield_access->bool) (change_expr:texp
 					{ e with eexpr = TField ({ fexpr with eexpr = TTypeExpr decl }, FEnum (en, ef)) }
 				| TAbstractDecl _ (* abstracts don't have TFields *)
 				| TTypeDecl _ -> (* anon_class doesn't return TTypeDecl *)
-					assert false
+					Globals.die "" __LOC__
 			with Not_found ->
 				match f with
-				| FStatic (cl, cf) when Meta.has Meta.Extern cf.cf_meta ->
+				| FStatic (cl, cf) when has_class_field_flag cf CfExtern ->
 					{ e with eexpr = TField ({ fexpr with eexpr = TTypeExpr decl }, FStatic (cl, cf)) }
 				| _ ->
 					change_expr e { fexpr with eexpr = TTypeExpr decl } (field_name f) None true)
@@ -118,10 +118,10 @@ let configure gen (is_dynamic:texpr->Type.tfield_access->bool) (change_expr:texp
 				Type.map_expr run e)
 
 		| TBinop (OpAssignOp _, { eexpr = TField (fexpr, f) }, _) when is_dynamic fexpr f ->
-			assert false (* this case shouldn't happen *)
+			Globals.die "" __LOC__ (* this case shouldn't happen *)
 		| TUnop (Increment, _, { eexpr = TField (({ eexpr = TLocal _ } as fexpr), f)})
 		| TUnop (Decrement, _, { eexpr = TField (({ eexpr = TLocal _ } as fexpr), f)}) when is_dynamic fexpr f ->
-			assert false (* this case shouldn't happen *)
+			Globals.die "" __LOC__ (* this case shouldn't happen *)
 
 		| TCall ({ eexpr = TField (fexpr, f) }, params) when is_dynamic fexpr f && (not (is_nondynamic_tparam fexpr f)) ->
 			call_expr e (run fexpr) (field_name f) (List.map run params)

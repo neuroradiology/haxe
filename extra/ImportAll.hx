@@ -52,8 +52,12 @@ class ImportAll {
 			return;
 		case "sys":
 			if(!isSysTarget()) return;
+		case "sys.thread":
+			if ( !Context.defined("target.threaded") ) return;
 		case "java":
 			if( !Context.defined("java") ) return;
+		case "jvm":
+			if( !Context.defined("jvm") ) return;
 		case "cs":
 			if( !Context.defined("cs") ) return;
 		case "python":
@@ -66,10 +70,10 @@ class ImportAll {
 			if( !Context.defined("eval") ) return;
 		case "ssl":
 			if (!Context.defined("neko") && !Context.defined("cpp")) return;
-		case "tools", "build-tool": return;
+		case "tools", "build-tool", "jar-tool": return;
 		}
 		for( p in Context.getClassPath() ) {
-			if( p == "/" )
+			if( p == "/" || p == "" )
 				continue;
 			// skip if we have a classpath to haxe
 			if( pack.length == 0 && sys.FileSystem.exists(p+"std") )

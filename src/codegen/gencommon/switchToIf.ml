@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -81,7 +81,7 @@ let configure gen (should_convert:texpr->bool) =
 					| cond :: tl ->
 						mk (TBinop (Ast.OpBoolOr, mk_eq (run cond), mk_many_cond tl)) basic.tbool cond.epos
 					| [] ->
-						assert false
+						Globals.die "" __LOC__
 				in
 
 				let mk_many_cond conds =

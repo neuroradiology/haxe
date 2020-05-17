@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -82,7 +82,7 @@ struct
 
 		(match Texpr.build_metadata gen.gcon.basic (TEnumDecl en) with
 			| Some expr ->
-				let cf = mk_class_field "__meta__" expr.etype false expr.epos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
+				let cf = mk_class_field ~static:true "__meta__" expr.etype false expr.epos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
 				cf.cf_expr <- Some expr;
 				cl.cl_statics <- PMap.add "__meta__" cf cl.cl_statics;
 				cl.cl_ordered_statics <- cf :: cl.cl_ordered_statics
@@ -138,7 +138,7 @@ struct
 					let cf = mk_class_field name ef_type true pos (Method MethNormal) cf_params in
 					cf.cf_meta <- [];
 
-					let tf_args = List.map (fun (name,opt,t) ->  (alloc_var name t, if opt then Some TNull else None) ) params in
+					let tf_args = List.map (fun (name,opt,t) ->  (alloc_var name t, if opt then Some (Texpr.Builder.make_null t null_pos) else None) ) params in
 					let arr_decl = mk_nativearray_decl gen t_dynamic (List.map (fun (v,_) -> mk_local v pos) tf_args) pos in
 					let expr = {
 						eexpr = TFunction({
@@ -154,7 +154,7 @@ struct
 				| _ ->
 					let actual_t = match follow ef.ef_type with
 						| TEnum(e, p) -> TEnum(e, List.map (fun _ -> t_dynamic) p)
-						| _ -> assert false
+						| _ -> die "" __LOC__
 					in
 					let cf = mk_class_field name actual_t true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
 					let args = if has_params then
@@ -173,7 +173,7 @@ struct
 			cl.cl_statics <- PMap.add cf.cf_name cf cl.cl_statics;
 			cf
 		) en.e_names in
-		let constructs_cf = mk_class_field "__hx_constructs" (gen.gclasses.nativearray basic.tstring) true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
+		let constructs_cf = mk_class_field ~static:true "__hx_constructs" (gen.gclasses.nativearray basic.tstring) true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
 		constructs_cf.cf_meta <- [Meta.ReadOnly,[],pos];
 		constructs_cf.cf_expr <- Some (mk_nativearray_decl gen basic.tstring (List.map (fun s -> { eexpr = TConst(TString s); etype = basic.tstring; epos = pos }) en.e_names) pos);
 
@@ -182,7 +182,7 @@ struct
 
 		let getTag_cf_type = tfun [] basic.tstring in
 		let getTag_cf = mk_class_field "getTag" getTag_cf_type true pos (Method MethNormal) [] in
-		getTag_cf.cf_meta <- [(Meta.Final, [], pos)];
+		add_class_field_flag getTag_cf CfFinal;
 		getTag_cf.cf_expr <- Some {
 			eexpr = TFunction {
 				tf_args = [];

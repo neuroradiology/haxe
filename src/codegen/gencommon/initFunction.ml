@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -57,11 +57,11 @@ let handle_override_dynfun acc e this field =
 		match e.eexpr with
 		| TField ({ eexpr = TConst TSuper }, f) ->
 			let n = field_name f in
-			if n <> field then assert false;
+			if n <> field then Globals.die "" __LOC__;
 			if Option.is_none !add_expr then
 				add_expr := Some { e with eexpr = TVar(v, Some this) };
 			mk_local v e.epos
-		| TConst TSuper -> assert false
+		| TConst TSuper -> Globals.die "" __LOC__
 		| _ -> Type.map_expr loop e
 	in
 	let e = loop e in
@@ -201,21 +201,23 @@ let handle_class com cl =
 						| TBlock(hd :: tl) ->
 							(match hd.eexpr with
 							| TCall ({ eexpr = TConst TSuper }, _) ->
+								let tl_block = { e with eexpr = TBlock(tl) } in
 								if not (OverloadingConstructor.descends_from_native_or_skipctor cl) then
-									{ e with eexpr = TBlock (vars @ (hd :: (funs @ tl))) }
+									{ e with eexpr = TBlock (vars @ (hd :: (funs @ [tl_block]))) }
 								else
-									{ e with eexpr = TBlock (hd :: (vars @ funs @ tl)) }
+									{ e with eexpr = TBlock (hd :: (vars @ funs @ [tl_block])) }
 							| TBlock _ ->
-								{ e with eexpr = TBlock ((add_fn hd) :: tl) }
+								let tl_block = { e with eexpr = TBlock(tl) } in
+								{ e with eexpr = TBlock ((add_fn hd) :: [tl_block]) }
 							| _ ->
-								{ e with eexpr = TBlock (vars @ funs @ (hd :: tl)) })
+								{ e with eexpr = TBlock (vars @ funs @ [{ e with eexpr = TBlock(hd :: tl) }]) })
 						| _ ->
-							Type.concat { e with eexpr = TBlock (vars @ funs) } e
+							Type.concat { e with eexpr = TBlock (vars @ funs) } { e with eexpr = TBlock([e]) }
 					in
 					let tf_expr = add_fn (mk_block tf.tf_expr) in
 					{ e with eexpr = TFunction { tf with tf_expr = tf_expr } }
 				| _ ->
-					assert false
+					Globals.die "" __LOC__
 			in
 			ctor.cf_expr <- Some func
 		in

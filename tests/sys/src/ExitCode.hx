@@ -25,6 +25,8 @@ class ExitCode {
 		#else
 			"bin/cs/bin/ExitCode.exe";
 		#end
+	#elseif jvm
+		"bin/jvm/ExitCode.jar";
 	#elseif java
 		#if debug
 			"bin/java/ExitCode-Debug.jar";

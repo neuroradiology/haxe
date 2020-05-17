@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -101,7 +101,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 									| _, TDynamic _ -> false
 									| r1, r2 -> try
 										unify r1 r2;
-										true
+										if like_int r1 then like_int r2 else true
 									with | Unify_error _ -> false
 								in
 								(* we only have to worry about non-covariant issues *)
@@ -109,7 +109,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 									(* override return type and cast implemented function *)
 									let args, newr = match follow t2, follow (apply_params f.cf_params (List.map snd f2.cf_params) real_ftype) with
 										| TFun(a,_), TFun(_,r) -> a,r
-										| _ -> assert false
+										| _ -> Globals.die "" __LOC__
 									in
 									f2.cf_type <- TFun(args,newr);
 									(match f2.cf_expr with
@@ -126,6 +126,10 @@ let run ~explicit_fn_name ~get_vmtype gen =
 								in
 								let p = f2.cf_pos in
 								let newf = mk_class_field name real_ftype true f.cf_pos (Method MethNormal) f.cf_params in
+								(* make sure that there isn't already an overload with the same exact type *)
+								if List.exists (fun (t,f2) ->
+									type_iseq (get_real_fun gen t) real_ftype
+								) overloads then raise Not_found;
 								let vars = List.map (fun (n,_,t) -> alloc_var n t) a2 in
 
 								let args = List.map2 (fun v (_,_,t) -> mk_cast t (mk_local v f2.cf_pos)) vars a1 in
@@ -149,7 +153,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 								with | Not_found ->
 									c.cl_fields <- PMap.add name newf c.cl_fields;
 									c.cl_ordered_fields <- newf :: c.cl_ordered_fields)
-							| _ -> assert false
+							| _ -> Globals.die "" __LOC__
 						end
 					with | Not_found -> ()
 				in
@@ -197,13 +201,13 @@ let run ~explicit_fn_name ~get_vmtype gen =
 											with Unify_error _ ->
 												true
 										with Unify_error _ -> false) current_args original_args
-								| _ -> assert false
+								| _ -> Globals.die "" __LOC__
 							in
 							if (not (Meta.has Meta.Overload f.cf_meta) && has_contravariant_args) then
 								f.cf_meta <- (Meta.Overload, [], f.cf_pos) :: f.cf_meta;
 							if Meta.has Meta.Overload f.cf_meta then begin
 								(* if it is overload, create another field with the requested type *)
-								let f3 = mk_class_field f.cf_name t f.cf_public f.cf_pos f.cf_kind f.cf_params in
+								let f3 = mk_class_field f.cf_name t (has_class_field_flag f CfPublic) f.cf_pos f.cf_kind f.cf_params in
 								let p = f.cf_pos in
 								let old_args, old_ret = get_fun f.cf_type in
 								let args, ret = get_fun t in

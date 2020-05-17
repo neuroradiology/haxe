@@ -6,13 +6,13 @@ class TestSys extends TestCommandBase {
 	}
 
 	function testEnv() {
-		#if !(java || lua)
+		#if !(java)
 		Sys.putEnv("foo", "value");
 		Assert.equals("value", Sys.getEnv("foo"));
 		#end
 		Assert.equals(null, Sys.getEnv("doesn't exist"));
 
-		#if !(java || lua)
+		#if !(java)
 		var env = Sys.environment();
 		Assert.equals("value", env.get("foo"));
 		#end
@@ -37,6 +37,8 @@ class TestSys extends TestCommandBase {
 			}
 		#elseif cs
 			Assert.isTrue(StringTools.endsWith(p, "Main-Debug.exe"));
+		#elseif jvm
+			Assert.isTrue(StringTools.endsWith(p, "sys.jar"));
 		#elseif java
 			Assert.isTrue(StringTools.endsWith(p, "Main-Debug.jar"));
 		#elseif python

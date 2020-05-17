@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -89,11 +89,11 @@ let init com handle_strings (should_change:texpr->bool) (equals_handler:texpr->t
 							(mk (TVar (v, Some (run e1a))) com.basic.tvoid e1.epos);
 							(mk (TVar (v2, Some (run e2a))) com.basic.tvoid e1.epos)
 						]
-					| _ -> assert false
+					| _ -> Globals.die "" __LOC__
 				in
 				{ e with eexpr = TBlock (rest @ [{ e with eexpr = TBinop (OpAssign, eleft, run { e with eexpr = TBinop (op, eleft, e2) }) }]) }
 			| _ ->
-				assert false)
+				Globals.die "" __LOC__)
 
 		| TBinop (OpAssign, e1, e2)
 		| TBinop (OpInterval, e1, e2) ->
@@ -120,7 +120,7 @@ let init com handle_strings (should_change:texpr->bool) (equals_handler:texpr->t
 			| OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr ->
 				{ e with eexpr = TBinop (op, mk_cast com.basic.tint (run e1), mk_cast com.basic.tint (run e2)) }
 			| OpAssign | OpAssignOp _ | OpInterval | OpArrow | OpIn ->
-				assert false)
+				Globals.die "" __LOC__)
 
 		| TUnop (Increment as op, flag, e1)
 		| TUnop (Decrement as op, flag, e1) when should_change e ->
@@ -137,7 +137,7 @@ let init com handle_strings (should_change:texpr->bool) (equals_handler:texpr->t
 			*)
 			let one = get_etype_one e in
 			let etype = one.etype in
-			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
+			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> Globals.die "" __LOC__) in
 
 			let block =
 				let vars, getvar =
@@ -166,7 +166,15 @@ let init com handle_strings (should_change:texpr->bool) (equals_handler:texpr->t
 			mk (TBlock block) etype e.epos
 
 	| TUnop (op, flag, e1) when should_change e ->
-		let etype = match op with Not -> com.basic.tbool | _ -> com.basic.tint in
+		let etype = match op with
+			| Not -> com.basic.tbool
+			| Neg ->
+				if like_float e.etype || like_i64 e.etype then
+					e.etype
+				else
+					com.basic.tfloat
+			| _ -> com.basic.tint
+		in
 		mk_parent (mk (TUnop (op, flag, mk_cast etype (run e1))) etype e.epos)
 
 	| _ ->

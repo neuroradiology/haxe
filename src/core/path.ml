@@ -1,3 +1,5 @@
+open StringHelper
+
 let get_path_parts f =
 	(*
 		this function is quite weird: it tries to determine whether the given
@@ -16,44 +18,41 @@ let get_path_parts f =
 	else
 		ExtString.String.nsplit f "."
 
+let check_invalid_char x =
+	for i = 1 to String.length x - 1 do
+		match x.[i] with
+		| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '.' -> ()
+		| c -> failwith ("Invalid character: " ^ (StringHelper.s_escape (String.make 1 c)))
+	done
+
+let check_package_name x =
+	if String.length x = 0 then
+		failwith "Package name must not be empty"
+	else if (x.[0] < 'a' || x.[0] > 'z') && x.[0] <> '_' then
+		failwith "Package name must start with a lowercase letter";
+	check_invalid_char x
+
 let parse_path f =
 	let cl = get_path_parts f in
 	let error msg =
 		let msg = "Could not process argument " ^ f ^ "\n" ^ msg in
 		failwith msg
 	in
-	let invalid_char x =
-		for i = 1 to String.length x - 1 do
-			match x.[i] with
-			| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '.' -> ()
-			| c -> error ("invalid character: " ^ (String.make 1 c))
-		done
-	in
 	let rec loop = function
 		| [] ->
-			error "empty part"
+			error "Package name must not be empty"
 		| [x] ->
-			invalid_char x;
+			check_invalid_char x;
 			[],x
 		| x :: l ->
-			if String.length x = 0 then
-				error "empty part"
-			else if x.[0] < 'a' || x.[0] > 'z' then
-				error "Package name must start with a lower case character";
-			invalid_char x;
+			check_package_name x;
 			let path,name = loop l in
 			x :: path,name
 	in
-	loop cl
-
-let starts_uppercase x =
-	x.[0] = '_' || (x.[0] >= 'A' && x.[0] <= 'Z')
-
-let check_uppercase x =
-	if String.length x = 0 then
-		failwith "empty part"
-	else if not (starts_uppercase x) then
-		failwith "Class name must start with uppercase character"
+	try
+		loop cl
+	with Failure msg ->
+		error msg
 
 let parse_type_path s =
 	let pack,name = parse_path s in
@@ -79,7 +78,7 @@ let normalize_path path =
 		| Str.Text t :: [] ->
 			List.rev (t :: acc)
 		| Str.Text _ :: Str.Text  _ :: _ ->
-			assert false
+			Globals.die "" __LOC__
 	in
 	String.concat "/" (normalize [] (Str.full_split path_regex path))
 
@@ -96,13 +95,34 @@ let get_real_path =
 	else
 		get_full_path
 
-(** Returns absolute path guaranteed to be the same for different letter case.
-    Use where equality comparison is required, lowercases the path on Windows *)
-let unique_full_path =
-	if Globals.is_windows then
-		(fun f -> String.lowercase (get_full_path f))
-	else
-		get_full_path
+module UniqueKey : sig
+	type t
+	(**
+		Returns absolute path guaranteed to be the same for different letter case.
+		Use where equality comparison is required, lowercases the path on Windows
+	*)
+	val create : string -> t
+	(**
+		Check if the first key starts with the second key
+	*)
+	val starts_with : t -> t -> bool
+	(**
+		Get string representation of a key
+	*)
+	val to_string : t -> string
+end = struct
+	type t = string
+	let create =
+		if Globals.is_windows then
+			(fun f -> String.lowercase (get_full_path f))
+		else
+			get_full_path
+
+	let starts_with subj start =
+		ExtString.String.starts_with subj start
+
+	let to_string k = k
+end
 
 let add_trailing_slash p =
 	let l = String.length p in
@@ -159,8 +179,20 @@ let make_valid_filename s =
 	let r = Str.regexp "[^A-Za-z0-9_\\-\\.,]" in
 	Str.global_substitute r (fun s -> "_") s
 
+let module_name_of_file file =
+	match List.rev (Str.split path_regex (get_real_path file)) with
+	| s :: _ ->
+		let s = match List.rev (ExtString.String.nsplit s ".") with
+		| [s] -> s
+		| _ :: sl -> String.concat "." (List.rev sl)
+		| [] -> ""
+		in
+		s
+	| [] ->
+		Globals.die "" __LOC__
+
 let rec create_file bin ext acc = function
-	| [] -> assert false
+	| [] -> Globals.die "" __LOC__
 	| d :: [] ->
 		let d = make_valid_filename d in
 		let maxlen = 200 - String.length ext in
@@ -200,3 +232,55 @@ let mkdir_from_path path =
 		| _ ->
 			let dir_list = List.rev (List.tl (List.rev parts)) in
 			mkdir_recursive "" dir_list
+
+let full_dot_path pack mname tname =
+	if tname = mname then (pack,mname) else (pack @ [mname],tname)
+
+module FilePath = struct
+	type t = {
+		directory : string option;
+		file_name : string option;
+		extension : string option;
+		backslash : bool;
+	}
+
+	let create directory file_name extension backslash = {
+		directory = directory;
+		file_name = file_name;
+		extension = extension;
+		backslash = backslash;
+	}
+
+	let parse path = match path with
+		| "." | ".." ->
+			create (Some path) None None false
+		| _ ->
+			let c1 = try String.rindex path '/' with Not_found -> -1 in
+			let c2 = try String.rindex path '\\' with Not_found -> -1 in
+			let split s at = String.sub s 0 at,String.sub s (at + 1) (String.length s - at - 1) in
+			let dir,path,backslash = if c1 < c2 then begin
+				let dir,path = split path c2 in
+				Some dir,path,true
+			end else if c2 < c1 then begin
+				let dir,path = split path c1 in
+				Some dir,path,false
+			end else
+				None,path,false
+			in
+			let file,ext = if String.length path = 0 then
+				None,None
+			else begin try
+				let cp = String.rindex path '.' in
+				let file,ext = split path cp in
+				Some file,Some ext
+			with Not_found ->
+				Some path,None
+			end in
+			create dir file ext backslash
+
+	let name_and_extension path = match path.file_name with
+		| None -> failwith "File path has no name"
+		| Some name -> match path.extension with
+			| None -> name
+			| Some ext -> name ^ "." ^ ext
+end

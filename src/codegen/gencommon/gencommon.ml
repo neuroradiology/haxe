@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -104,7 +104,7 @@ let rec like_i64 t =
 let follow_once t =
 	match t with
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> t
 		| _ -> t_dynamic) (* avoid infinite loop / should be the same in this context *)
 	| TLazy f ->
@@ -116,9 +116,9 @@ let follow_once t =
 	| _ ->
 		t
 
-let t_empty = TAnon({ a_fields = PMap.empty; a_status = ref Closed })
+let t_empty = mk_anon (ref Closed)
 
-let alloc_var n t = Type.alloc_var n t null_pos
+let alloc_var n t = Type.alloc_var VGenerated n t null_pos
 
 let mk_local = Texpr.Builder.make_local
 
@@ -163,10 +163,10 @@ let anon_class t =
 			| EnumStatics e -> TEnumDecl e
 			| Statics cl -> TClassDecl cl
 			| AbstractStatics a -> TAbstractDecl a
-			| _ -> assert false)
+			| _ -> die "" __LOC__)
 	| TLazy f -> t_to_md (lazy_type f)
-	| TMono r -> (match !r with | Some t -> t_to_md t | None -> assert false)
-	| _ -> assert false
+	| TMono r -> (match r.tm_type with | Some t -> t_to_md t | None -> die "" __LOC__)
+	| _ -> die "" __LOC__
 
 
 let get_cl mt = match mt with TClassDecl cl -> cl | _ -> failwith (Printf.sprintf "Unexpected module type (class expected) for %s: %s" (s_type_path (t_path mt)) (s_module_type_kind mt))
@@ -175,7 +175,7 @@ let get_abstract mt = match mt with TAbstractDecl a -> a | _ -> failwith (Printf
 let get_fun t =
 	match follow t with
 	| TFun (args, ret) -> args, ret
-	| t -> (trace (debug_type t)); assert false
+	| t -> (trace (debug_type t)); die "" __LOC__
 
 let mk_cast t e = Type.mk_cast e t e.epos
 
@@ -378,6 +378,8 @@ type generator_ctx =
 	(* this is all you need to care about *)
 	gcon : Common.context;
 
+	gentry_point : (string * tclass * texpr) option;
+
 	gclasses : gen_classes;
 
 	gtools : gen_tools;
@@ -550,7 +552,12 @@ let new_ctx con =
 			| TClassDecl cl -> Hashtbl.add types cl.cl_path mt
 			| TEnumDecl e -> Hashtbl.add types e.e_path mt
 			| TTypeDecl t -> Hashtbl.add types t.t_path mt
-			| TAbstractDecl a -> Hashtbl.add types a.a_path mt
+			| TAbstractDecl a ->
+				(* There are some cases where both an abstract and a class
+				   have the same name (e.g. java.lang.Double/Integer/etc)
+				   in this case we generally want the class to have priority *)
+				if not (Hashtbl.mem types a.a_path) then
+					Hashtbl.add types a.a_path mt
 	) con.types;
 
 	let get_type path =
@@ -561,19 +568,20 @@ let new_ctx con =
 		| TClassDecl c -> c
 		| TAbstractDecl a ->
 				mk_class a.a_module ([], "Dynamic") a.a_pos null_pos
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	in
 
 	let rec gen = {
 		gcon = con;
+		gentry_point = get_entry_point con;
 		gclasses = {
 			cl_reflect = get_cl (get_type ([], "Reflect"));
 			cl_type = get_cl (get_type ([], "Type"));
 			cl_dyn = cl_dyn;
 
-			nativearray = (fun _ -> assert false);
-			nativearray_type = (fun _ -> assert false);
-			nativearray_len = (fun _ -> assert false);
+			nativearray = (fun _ -> die "" __LOC__);
+			nativearray_type = (fun _ -> die "" __LOC__);
+			nativearray_len = (fun _ -> die "" __LOC__);
 		};
 		gtools = {
 			r_fields = (fun is_used_only_by_iteration expr ->
@@ -592,7 +600,7 @@ let new_ctx con =
 				mk_cast t { eexpr = TCall(fieldcall, [obj; field]); etype = t_dynamic; epos = obj.epos }
 			);
 
-			r_create_empty = (fun _ _ pos -> gen.gcon.error "r_create_empty implementation is not provided" pos; assert false);
+			r_create_empty = (fun _ _ pos -> gen.gcon.error "r_create_empty implementation is not provided" pos; die "" __LOC__);
 		};
 		gexpr_filters = new rule_map_dispatcher "gexpr_filters";
 		gmodule_filters = new rule_map_dispatcher "gmodule_filters";
@@ -612,11 +620,11 @@ let new_ctx con =
 		gadd_type = (fun md should_filter ->
 			if should_filter then begin
 				gen.gtypes_list <- md :: gen.gtypes_list;
-				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_extra = module_extra "" "" 0. MFake [] } :: gen.gmodules;
+				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_statics = None; m_extra = module_extra "" "" 0. MFake [] } :: gen.gmodules;
 				Hashtbl.add gen.gtypes (t_path md) md;
 			end else gen.gafter_filters_ended <- (fun () ->
 				gen.gtypes_list <- md :: gen.gtypes_list;
-				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_extra = module_extra "" "" 0. MFake [] } :: gen.gmodules;
+				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_statics = None; m_extra = module_extra "" "" 0. MFake [] } :: gen.gmodules;
 				Hashtbl.add gen.gtypes (t_path md) md;
 			) :: gen.gafter_filters_ended;
 		);
@@ -651,7 +659,7 @@ let init_ctx gen =
 	let follow t =
 		match t with
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| Some t -> follow_f t
 			| _ -> Some t)
 		| TLazy f ->
@@ -677,7 +685,7 @@ let reorder_modules gen =
 	Hashtbl.iter (fun md_path md ->
 		if not (Hashtbl.mem processed md_path) then begin
 			Hashtbl.add processed md_path true;
-			gen.gmodules <- { m_id = alloc_mid(); m_path = md_path; m_types = List.rev ( Hashtbl.find_all modules md_path ); m_extra = (t_infos md).mt_module.m_extra } :: gen.gmodules
+			gen.gmodules <- { m_id = alloc_mid(); m_path = md_path; m_types = List.rev ( Hashtbl.find_all modules md_path ); m_statics = None; m_extra = (t_infos md).mt_module.m_extra } :: gen.gmodules
 		end
 	) modules
 
@@ -831,7 +839,7 @@ let write_file gen w source_dir path extension out_files =
 		close_out f
 	end;
 
-	out_files := (Path.unique_full_path s_path) :: !out_files;
+	out_files := (Path.UniqueKey.create s_path) :: !out_files;
 
 	t()
 
@@ -846,7 +854,7 @@ let clean_files path excludes verbose =
 				let pack = pack @ [file] in
 				iter_files (pack) (Unix.opendir filepath) filepath;
 				try Unix.rmdir filepath with Unix.Unix_error (ENOTEMPTY,_,_) -> ();
-			else if not (String.ends_with filepath ".meta") && not (List.mem (Path.unique_full_path filepath) excludes) then begin
+			else if not (String.ends_with filepath ".meta") && not (List.mem (Path.UniqueKey.create filepath) excludes) then begin
 				if verbose then print_endline ("Removing " ^ filepath);
 			 	Sys.remove filepath
 			end
@@ -910,19 +918,19 @@ let dump_descriptor gen name path_s module_s =
 	SourceWriter.write w "end modules";
 	SourceWriter.newline w;
 	(* dump all resources *)
-	(match gen.gcon.main_class with
-		| Some path ->
-			SourceWriter.write w "begin main";
-			SourceWriter.newline w;
-			(try
-				SourceWriter.write w (Hashtbl.find main_paths path)
-			with
-				| Not_found -> SourceWriter.write w (path_s path));
-			SourceWriter.newline w;
-			SourceWriter.write w "end main";
-			SourceWriter.newline w
-	| _ -> ()
-	);
+	(match gen.gentry_point with
+	| Some (_,cl,_) ->
+		SourceWriter.write w "begin main";
+		SourceWriter.newline w;
+		let path = cl.cl_path in
+		(try
+			SourceWriter.write w (Hashtbl.find main_paths path)
+		with Not_found ->
+			SourceWriter.write w (path_s path));
+		SourceWriter.newline w;
+		SourceWriter.write w "end main";
+		SourceWriter.newline w
+	| _ -> ());
 	SourceWriter.write w "begin resources";
 	SourceWriter.newline w;
 	Hashtbl.iter (fun name _ ->
@@ -942,19 +950,19 @@ let dump_descriptor gen name path_s module_s =
 				file
 	in
 	if Common.platform gen.gcon Java then
-		List.iter (fun (s,std,_,_,_) ->
-			if not std then begin
-				SourceWriter.write w (path s ".jar");
+		List.iter (fun java_lib ->
+			if not (java_lib#has_flag NativeLibraries.FlagIsStd) && not (java_lib#has_flag NativeLibraries.FlagIsExtern) then begin
+				SourceWriter.write w (path java_lib#get_file_path ".jar");
 				SourceWriter.newline w;
 			end
-		) gen.gcon.java_libs
+		) gen.gcon.native_libs.java_libs
 	else if Common.platform gen.gcon Cs then
-		List.iter (fun (s,std,_,_) ->
-			if not std then begin
-				SourceWriter.write w (path s ".dll");
+		List.iter (fun net_lib ->
+			if not (net_lib#has_flag NativeLibraries.FlagIsStd) && not (net_lib#has_flag NativeLibraries.FlagIsExtern) then begin
+				SourceWriter.write w (path net_lib#get_name ".dll");
 				SourceWriter.newline w;
 			end
-		) gen.gcon.net_libs;
+		) gen.gcon.native_libs.net_libs;
 	SourceWriter.write w "end libs";
 	SourceWriter.newline w;
 	let args = gen.gcon.c_args in
@@ -1005,7 +1013,7 @@ let follow_module follow_func md = match md with
 		| TEnum(e,_) -> TEnumDecl e
 		| TType(t,_) -> TTypeDecl t
 		| TAbstract(a,_) -> TAbstractDecl a
-		| _ -> assert false
+		| _ -> die "" __LOC__
 
 (*
 	hxgen means if the type was generated by haxe. If a type was generated by haxe, it means
@@ -1040,14 +1048,14 @@ let mt_to_t mt params =
 		| TClassDecl (cl) -> TInst(cl, params)
 		| TEnumDecl (e) -> TEnum(e, params)
 		| TAbstractDecl a -> TAbstract(a, params)
-		| _ -> assert false
+		| _ -> die "" __LOC__
 
 let t_to_mt t =
 	match follow t with
 		| TInst(cl, _) -> TClassDecl(cl)
 		| TEnum(e, _) -> TEnumDecl(e)
 		| TAbstract(a, _) -> TAbstractDecl a
-		| _ -> assert false
+		| _ -> die "" __LOC__
 
 let rec get_last_ctor cl =
 	Option.map_default (fun (super,_) -> if is_some super.cl_constructor then Some(get super.cl_constructor) else get_last_ctor super) None cl.cl_super
@@ -1063,8 +1071,8 @@ let add_constructor cl cf =
 let rec replace_mono t =
 	match t with
 	| TMono t ->
-		(match !t with
-		| None -> t := Some t_dynamic
+		(match t.tm_type with
+		| None -> Monomorph.bind t t_dynamic
 		| Some _ -> ())
 	| TEnum (_,p) | TInst (_,p) | TType (_,p) | TAbstract (_,p) ->
 		List.iter replace_mono p
@@ -1077,9 +1085,8 @@ let rec replace_mono t =
 		replace_mono (lazy_type f)
 
 (* helper *)
-let mk_class_field name t public pos kind params =
-	let f = mk_field name t pos null_pos in
-	f.cf_public <- public;
+let mk_class_field ?(static = false) name t public pos kind params =
+	let f = mk_field name ~public ~static t pos null_pos in
 	f.cf_meta <- [ Meta.CompilerGenerated, [], null_pos ]; (* annotate that this class field was generated by the compiler *)
 	f.cf_kind <- kind;
 	f.cf_params <- params;
@@ -1095,7 +1102,7 @@ let map_param cl =
 	ret
 
 let get_cl_t t =
-	match follow t with | TInst (cl,_) -> cl | _ -> assert false
+	match follow t with | TInst (cl,_) -> cl | _ -> die "" __LOC__
 
 let mk_class m path pos =
 	let cl = Type.mk_class m path pos null_pos in
@@ -1219,7 +1226,7 @@ let rec field_access gen (t:t) (field:string) : (tfield_access) =
 			   but for now, we're going to find the generated class and make a field access to it instead. *)
 			(try
 				let cl_enum = List.find (function TClassDecl cl when cl.cl_path = en.e_path && Meta.has Meta.Enum cl.cl_meta -> true | _ -> false) gen.gtypes_list in
-				let cl_enum = match cl_enum with TClassDecl cl -> TInst (cl,params) | _ -> assert false in
+				let cl_enum = match cl_enum with TClassDecl cl -> TInst (cl,params) | _ -> die "" __LOC__ in
 				field_access gen cl_enum field
 			with Not_found ->
 				FNotFound)
@@ -1246,7 +1253,7 @@ let rec field_access gen (t:t) (field:string) : (tfield_access) =
 		| _ -> FNotFound
 
 let field_access_esp gen t field = match field with
-	| FStatic(cl,cf) | FInstance(cl,_,cf) when Meta.has Meta.Extern cf.cf_meta ->
+	| FStatic(cl,cf) | FInstance(cl,_,cf) when has_class_field_flag cf CfExtern ->
 		let static = match field with
 			| FStatic _ -> true
 			| _ -> false
@@ -1270,7 +1277,7 @@ let mk_field_access gen expr field pos =
 				{ eexpr = TField(expr, FDynamic field); etype = t; epos = pos }
 		| FNotFound ->
 				{ eexpr = TField(expr, FDynamic field); etype = t_dynamic; epos = pos }
-		| FEnumField _ -> assert false
+		| FEnumField _ -> die "" __LOC__
 
 (* ******************************************* *)
 (* Module dependency resolution *)
@@ -1310,6 +1317,6 @@ let get_type gen path =
 	try Hashtbl.find gen.gtypes path with | Not_found -> raise (TypeNotFound path)
 
 
-let fun_args (l : (tvar * tconstant option) list)=
+let fun_args l =
 	List.map (fun (v,s) -> (v.v_name, (s <> None), v.v_type)) l
 
