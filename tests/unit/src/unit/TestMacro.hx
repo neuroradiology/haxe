@@ -38,6 +38,7 @@ class TestMacro extends Test {
 		parseAndPrint("var a:A");
 		parseAndPrint("var a = b");
 		parseAndPrint("var a:A = b");
+		parseAndPrint("var @:a(b) c:D = e");
 		parseAndPrint("function() { }");
 		parseAndPrint("for (a in b) { }");
 		parseAndPrint("if (a) b");
@@ -69,6 +70,7 @@ class TestMacro extends Test {
 		parseAndPrint('(a, b) -> c');
 		parseAndPrint('function(a) return b');
 		parseAndPrint('function named(a) return b');
+		parseAndPrint('function named() {\n\tstatic final @Test a = 1, b = 2;\n\tstatic var c, d;\n\tfinal e = 2;\n\tvar f;\n}');
 
 		var p = new haxe.macro.Printer();
 		// special handling of single arguments (don't add parentheses)

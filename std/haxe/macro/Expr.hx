@@ -60,12 +60,12 @@ enum Constant {
 	/**
 		Represents an integer literal.
 	**/
-	CInt(v:String);
+	CInt(v:String, ?s:String);
 
 	/**
 		Represents a float literal.
 	**/
-	CFloat(f:String);
+	CFloat(f:String, ?s:String);
 
 	/**
 		Represents a string literal.
@@ -214,6 +214,11 @@ enum Binop {
 		`in`
 	**/
 	OpIn;
+
+	/**
+		`??`
+	**/
+	OpNullCoal;
 }
 
 /**
@@ -245,6 +250,16 @@ enum Unop {
 		`~`
 	**/
 	OpNegBits;
+
+	/**
+		`...`
+	**/
+	OpSpread;
+}
+
+enum EFieldKind {
+	Normal;
+	Safe;
 }
 
 /**
@@ -283,12 +298,12 @@ typedef Case = {
 	/**
 		The optional guard expressions of the case, if available.
 	**/
-	var ?guard:Null<Expr>;
+	var ?guard:Expr;
 
 	/**
 		The expression of the case, if available.
 	**/
-	var expr:Null<Expr>;
+	var ?expr:Expr;
 }
 
 /**
@@ -304,17 +319,27 @@ typedef Var = {
 	/**
 		The type-hint of the variable, if available.
 	**/
-	var type:Null<ComplexType>;
+	var ?type:ComplexType;
 
 	/**
 		The expression of the variable, if available.
 	**/
-	var expr:Null<Expr>;
+	var ?expr:Expr;
 
 	/**
 		Whether or not the variable can be assigned to.
 	**/
 	var ?isFinal:Bool;
+
+	/**
+		Whether or not the variable is static.
+	**/
+	var ?isStatic:Bool;
+
+	/**
+		Metadata associatied with the variable, if available.
+	**/
+	var ?meta:Metadata;
 }
 
 /**
@@ -414,8 +439,10 @@ enum ExprDef {
 
 	/**
 		Field access on `e.field`.
+
+		If `kind` is null, it is equal to Normal.
 	**/
-	EField(e:Expr, field:String);
+	EField(e:Expr, field:String, ?kind:EFieldKind);
 
 	/**
 		Parentheses `(e)`.
@@ -503,7 +530,7 @@ enum ExprDef {
 	/**
 		A `return` or `return e` expression.
 	**/
-	EReturn(?e:Null<Expr>);
+	EReturn(?e:Expr);
 
 	/**
 		A `break` expression.
@@ -536,11 +563,6 @@ enum ExprDef {
 	EDisplay(e:Expr, displayKind:DisplayKind);
 
 	/**
-		Used internally to provide completion.
-	**/
-	EDisplayNew(t:TypePath);
-
-	/**
 		A `(econd) ? eif : eelse` expression.
 	**/
 	ETernary(econd:Expr, eif:Expr, eelse:Expr);
@@ -554,6 +576,11 @@ enum ExprDef {
 		A `@m e` expression.
 	**/
 	EMeta(s:MetadataEntry, e:Expr);
+
+	/**
+		An `expr is Type` expression.
+	**/
+	EIs(e:Expr, t:ComplexType);
 }
 
 enum DisplayKind {
@@ -637,7 +664,7 @@ typedef TypePath = {
 		Sub is set on module sub-type access:
 		`pack.Module.Type` has `name = "Module"`, `sub = "Type"`, if available.
 	**/
-	var ?sub:Null<String>;
+	var ?sub:String;
 }
 
 /**
@@ -667,6 +694,11 @@ typedef TypeParamDecl = {
 	var ?constraints:Array<ComplexType>;
 
 	/**
+		The optional default type of the type parameter.
+	**/
+	var ?defaultType:Null<ComplexType>;
+
+	/**
 		The optional parameters of the type parameter.
 	**/
 	var ?params:Array<TypeParamDecl>;
@@ -689,12 +721,12 @@ typedef Function = {
 	/**
 		The return type-hint of the function, if available.
 	**/
-	var ret:Null<ComplexType>;
+	var ?ret:ComplexType;
 
 	/**
 		The expression of the function body, if available.
 	**/
-	var expr:Null<Expr>;
+	var ?expr:Expr;
 
 	/**
 		An optional list of function parameter type declarations.
@@ -719,12 +751,12 @@ typedef FunctionArg = {
 	/**
 		The type-hint of the function argument, if available.
 	**/
-	var type:Null<ComplexType>;
+	var ?type:ComplexType;
 
 	/**
 		The optional value of the function argument, if available.
 	**/
-	var ?value:Null<Expr>;
+	var ?value:Expr;
 
 	/**
 		The metadata of the function argument.
@@ -770,7 +802,7 @@ typedef Field = {
 		The documentation of the field, if available. If the field has no
 		documentation, the value is `null`.
 	**/
-	var ?doc:Null<String>;
+	var ?doc:String;
 
 	/**
 		The access modifiers of the field. By default fields have private access.
@@ -852,6 +884,16 @@ enum Access {
 		Extern access modifier.
 	**/
 	AExtern;
+
+	/**
+		Abstract access modifier.
+	**/
+	AAbstract;
+
+	/**
+		Overload access modifier.
+	**/
+	AOverload;
 }
 
 /**
@@ -861,7 +903,7 @@ enum FieldType {
 	/**
 		Represents a variable field type.
 	**/
-	FVar(t:Null<ComplexType>, ?e:Null<Expr>);
+	FVar(t:Null<ComplexType>, ?e:Expr);
 
 	/**
 		Represents a function field type.
@@ -871,7 +913,7 @@ enum FieldType {
 	/**
 		Represents a property with getter and setter field type.
 	**/
-	FProp(get:String, set:String, ?t:Null<ComplexType>, ?e:Null<Expr>);
+	FProp(get:String, set:String, ?t:ComplexType, ?e:Expr);
 }
 
 /**
@@ -892,7 +934,7 @@ typedef TypeDefinition = {
 		The documentation of the type, if available. If the type has no
 		documentation, the value is `null`.
 	**/
-	var ?doc:Null<String>;
+	var ?doc:String;
 
 	/**
 		The position to the type definition.
@@ -942,7 +984,7 @@ enum TypeDefKind {
 	/**
 		Represents a class kind.
 	**/
-	TDClass(?superClass:TypePath, ?interfaces:Array<TypePath>, ?isInterface:Bool, ?isFinal:Bool);
+	TDClass(?superClass:TypePath, ?interfaces:Array<TypePath>, ?isInterface:Bool, ?isFinal:Bool, ?isAbstract:Bool);
 
 	/**
 		Represents an alias/typedef kind.
@@ -955,9 +997,9 @@ enum TypeDefKind {
 	TDAbstract(tthis:Null<ComplexType>, ?from:Array<ComplexType>, ?to:Array<ComplexType>);
 
 	/**
-		Represents a module-level static field.
+		Represents a module-level field.
 	**/
-	TDStatic(kind:FieldType, ?access:Array<Access>); // ignore TypeDefinition.fields
+	TDField(kind:FieldType, ?access:Array<Access>); // ignore TypeDefinition.fields
 }
 
 /**

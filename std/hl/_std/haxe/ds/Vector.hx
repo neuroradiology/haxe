@@ -29,7 +29,7 @@ abstract Vector<T>(VectorData<T>) {
 	public inline function new(length:Int) {
 		this = [];
 		if (length > 0)
-			this[length - 1] = cast null;
+			this[length - 1] = @:nullSafety(Off) cast null;
 	}
 
 	@:op([]) public inline function get(index:Int):T {
@@ -72,7 +72,7 @@ abstract Vector<T>(VectorData<T>) {
 		return this.join(sep);
 	}
 
-	public inline function sort<T>(f:T->T->Int):Void {
+	public inline function sort(f:T->T->Int):Void {
 		this.sort(f);
 	}
 

@@ -20,6 +20,7 @@ and error_msg =
 	| Stack of error_msg * error_msg
 	| Call_error of call_error
 	| No_constructor of module_type
+	| Abstract_class of module_type
 
 and type_not_found_reason =
 	| Private_type
@@ -37,6 +38,11 @@ let string_source t = match follow t with
 let short_type ctx t =
 	let tstr = s_type ctx t in
 	if String.length tstr > 150 then String.sub tstr 0 147 ^ "..." else tstr
+
+(**
+	Should be called for each complementary error message.
+*)
+let compl_msg s = "... " ^ s
 
 let unify_error_msg ctx err = match err with
 	| Cannot_unify (t1,t2) ->
@@ -160,7 +166,7 @@ module BetterErrors = struct
 		| TAbstract (a,tl) ->
 			s_type_path a.a_path ^ s_type_params ctx tl
 		| TFun ([],_) ->
-			"Void -> ..."
+			"() -> ..."
 		| TFun (l,t) ->
 			let args = match l with
 				| [] -> "()"
@@ -180,7 +186,7 @@ module BetterErrors = struct
 				| AbstractStatics a -> Printf.sprintf "{ AbstractStatics %s }" (s_type_path a.a_path)
 				| _ ->
 					let fl = PMap.fold (fun f acc -> ((if Meta.has Meta.Optional f.cf_meta then " ?" else " ") ^ f.cf_name) :: acc) a.a_fields [] in
-					"{" ^ (if not (is_closed a) then "+" else "") ^  String.concat "," fl ^ " }"
+					"{" ^ String.concat "," fl ^ " }"
 			end
 		| TDynamic t2 ->
 			"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
@@ -259,7 +265,7 @@ module BetterErrors = struct
 			String.concat "\n" (List.rev_map (unify_error_msg ctx) access.acc_messages)
 		| Some access_next ->
 			let slhs,srhs = loop access_next access  in
-			Printf.sprintf "error: %s\n have: %s\n want: %s" (Buffer.contents message_buffer) slhs srhs
+			Printf.sprintf "error: %s\nhave: %s\nwant: %s" (Buffer.contents message_buffer) slhs srhs
 end
 
 let rec error_msg = function
@@ -272,6 +278,7 @@ let rec error_msg = function
 	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
 	| Call_error err -> s_call_error err
 	| No_constructor mt -> (s_type_path (t_infos mt).mt_path ^ " does not have a constructor")
+	| Abstract_class mt -> (s_type_path (t_infos mt).mt_path) ^ " is abstract and cannot be constructed"
 
 and s_call_error = function
 	| Not_enough_arguments tl ->
@@ -281,13 +288,13 @@ and s_call_error = function
 	| Could_not_unify err -> error_msg err
 	| Cannot_skip_non_nullable s -> "Cannot skip non-nullable argument " ^ s
 
-let error msg p = raise (Error (Custom msg,p))
+let typing_error msg p = raise (Error (Custom msg,p))
 
-let raise_error err p = raise (Error(err,p))
+let raise_typing_error err p = raise (Error(err,p))
 
 let error_require r p =
 	if r = "" then
-		error "This field is not available with the current compilation flags" p
+		typing_error "This field is not available with the current compilation flags" p
 	else
 	let r = if r = "sys" then
 		"a system platform (php,neko,cpp,etc.)"
@@ -298,6 +305,6 @@ let error_require r p =
 	with _ ->
 		"'" ^ r ^ "' to be enabled"
 	in
-	error ("Accessing this field requires " ^ r) p
+	typing_error ("Accessing this field requires " ^ r) p
 
-let invalid_assign p = error "Invalid assign" p
+let invalid_assign p = typing_error "Invalid assign" p

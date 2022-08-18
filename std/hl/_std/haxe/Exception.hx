@@ -9,13 +9,13 @@ class Exception {
 
 	@:noCompletion var __exceptionMessage:String;
 	@:noCompletion var __exceptionStack:Null<CallStack>;
-	@:noCompletion var __nativeStack:hl.NativeArray<hl.Bytes>;
+	@:noCompletion var __nativeStack:hl.NativeArray<#if (hl_ver >= "1.12.0") haxe.NativeStackTrace.Symbol #else hl.Bytes #end>;
 	@:noCompletion @:ifFeature("haxe.Exception.get_stack") var __skipStack:Int = 0;
 	@:noCompletion var __nativeException:Any;
 	@:noCompletion var __previousException:Null<Exception>;
 
 	static function caught(value:Any):Exception {
-		if(Std.is(value, Exception)) {
+		if(Std.isOfType(value, Exception)) {
 			return value;
 		} else {
 			return new ValueException(value, null, value);

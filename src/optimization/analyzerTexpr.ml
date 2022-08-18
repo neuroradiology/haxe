@@ -167,7 +167,7 @@ let type_change_ok com t1 t2 =
 			| TLazy f ->
 				is_nullable_or_whatever (lazy_type f)
 			| TType (t,tl) ->
-				is_nullable_or_whatever (apply_params t.t_params tl t.t_type)
+				is_nullable_or_whatever (apply_typedef t tl)
 			| TFun _ ->
 				false
 			| TInst ({ cl_kind = KTypeParameter _ },_) ->
@@ -311,15 +311,15 @@ module InterferenceReport = struct
 			(* vars *)
 			| TLocal v ->
 				set_var_read ir v;
-				if v.v_capture then set_state_read ir;
+				if has_var_flag v VCaptured then set_state_read ir;
 			| TBinop(OpAssign,{eexpr = TLocal v},e2) ->
 				set_var_write ir v;
-				if v.v_capture then set_state_write ir;
+				if has_var_flag v VCaptured then set_state_write ir;
 				loop e2
 			| TBinop(OpAssignOp _,{eexpr = TLocal v},e2) ->
 				set_var_read ir v;
 				set_var_write ir v;
-				if v.v_capture then begin
+				if has_var_flag v VCaptured then begin
 					set_state_read ir;
 					set_state_write ir;
 				end;
@@ -504,6 +504,7 @@ module Fusion = struct
 		| OpAssignOp _
 		| OpInterval
 		| OpIn
+		| OpNullCoal
 		| OpArrow ->
 			false
 
@@ -538,7 +539,7 @@ module Fusion = struct
 			| {eexpr = TField (_,fa)} as e1 :: el when PurityState.is_explicitly_impure fa ->
 				block_element (e1 :: acc) el
 			(* no-side-effect *)
-			| {eexpr = TEnumParameter _ | TEnumIndex _ | TFunction _ | TConst _ | TTypeExpr _} :: el ->
+			| {eexpr = TFunction _ | TConst _ | TTypeExpr _} :: el ->
 				block_element acc el
 			| {eexpr = TMeta((Meta.Pure,_,_),_)} :: el ->
 				block_element acc el
@@ -561,7 +562,7 @@ module Fusion = struct
 				| None -> block_element (e :: acc) el
 				end
 			(* no-side-effect composites *)
-			| {eexpr = TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) | TField(e1,_) | TUnop(_,_,e1)} :: el ->
+			| {eexpr = TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) | TField(e1,_) | TUnop(_,_,e1) | TEnumIndex e1 | TEnumParameter(e1,_,_)} :: el ->
 				block_element acc (e1 :: el)
 			| {eexpr = TArray(e1,e2) | TBinop(_,e1,e2)} :: el ->
 				block_element acc (e1 :: e2 :: el)
@@ -589,20 +590,33 @@ module Fusion = struct
 			let num_writes = state#get_writes v in
 			let can_be_used_as_value = can_be_used_as_value com e in
 			let is_compiler_generated = match v.v_kind with VUser _ | VInlined -> false | _ -> true in
-			let has_type_params = match v.v_extra with Some (tl,_) when tl <> [] -> true | _ -> false in
+			let has_type_params = match v.v_extra with Some ve when ve.v_params <> [] -> true | _ -> false in
+			let rec is_impure_extern e = match e.eexpr with
+				| TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf))) when has_class_flag cl CExtern ->
+					not (
+						Meta.has Meta.CoreApi cl.cl_meta ||
+						PurityState.is_pure cl cf
+					)
+				| _ -> check_expr is_impure_extern e
+			in
+			let is_impure_extern = (is_impure_extern e) in
+			let has_variable_semantics = ExtType.has_variable_semantics v.v_type in
+			let is_variable_expression = (match e.eexpr with TLocal { v_kind = VUser _ } -> false | _ -> true) in
 			let b = num_uses <= 1 &&
 			        num_writes = 0 &&
 			        can_be_used_as_value &&
 					not (
-						ExtType.has_variable_semantics v.v_type &&
-						(match e.eexpr with TLocal { v_kind = VUser _ } -> false | _ -> true)
-					) &&
-			        (is_compiler_generated || config.optimize && config.fusion && config.user_var_fusion && not has_type_params)
+						has_variable_semantics &&
+						is_variable_expression
+					) && (
+						is_compiler_generated ||
+						config.optimize && config.fusion && config.user_var_fusion && not has_type_params && not is_impure_extern
+					)
 			in
 			if config.fusion_debug then begin
 				print_endline (Printf.sprintf "\nFUSION: %s\n\tvar %s<%i> = %s" (if b then "true" else "false") v.v_name v.v_id (s_expr_pretty e));
-				print_endline (Printf.sprintf "CONDITION:\n\tnum_uses:%i <= 1 && num_writes:%i = 0 && can_be_used_as_value:%b && (is_compiler_generated:%b || config.optimize:%b && config.fusion:%b && config.user_var_fusion:%b)"
-					num_uses num_writes can_be_used_as_value is_compiler_generated config.optimize config.fusion config.user_var_fusion)
+				print_endline (Printf.sprintf "CONDITION:\n\tnum_uses:%i <= 1 && num_writes:%i = 0 && can_be_used_as_value:%b && not (has_variable_semantics:%b && e.eexpr=TLocal:%b) (is_compiler_generated:%b || config.optimize:%b && config.fusion:%b && config.user_var_fusion:%b && not has_type_params:%b && not is_impuare_extern:%b)"
+					num_uses num_writes can_be_used_as_value has_variable_semantics is_variable_expression is_compiler_generated config.optimize config.fusion config.user_var_fusion has_type_params is_impure_extern)
 			end;
 			b
 		in
@@ -651,7 +665,7 @@ module Fusion = struct
 				end
 			| {eexpr = TVar(v1,Some e1)} :: el when config.optimize && config.local_dce && state#get_reads v1 = 0 && state#get_writes v1 = 0 ->
 				fuse acc (e1 :: el)
-			| ({eexpr = TVar(v1,None)} as ev) :: el when not v1.v_capture ->
+			| ({eexpr = TVar(v1,None)} as ev) :: el when not (has_var_flag v1 VCaptured) ->
 				let found = ref false in
 				let rec replace deep e = match e.eexpr with
 					| TBinop(OpAssign,{eexpr = TLocal v2},e2) when v1 == v2 ->
@@ -748,7 +762,7 @@ module Fusion = struct
 							found := true;
 							if type_change_ok com v1.v_type e1.etype then e1 else mk (TCast(e1,None)) v1.v_type e.epos
 						| TLocal v ->
-							if has_var_write ir v || ((v.v_capture || ExtType.has_reference_semantics v.v_type) && (has_state_write ir)) then raise Exit;
+							if has_var_write ir v || ((has_var_flag v VCaptured || ExtType.has_reference_semantics v.v_type) && (has_state_write ir)) then raise Exit;
 							e
 						| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
 							let e2 = replace e2 in
@@ -1070,7 +1084,7 @@ module Purity = struct
 	let rec taint node = match node.pn_purity with
 		| Impure -> ()
 		| ExpectPure p -> raise (Purity_conflict(node,p));
-		| MaybePure | Pure ->
+		| MaybePure | Pure | InferredPure ->
 			node.pn_purity <- Impure;
 			List.iter taint node.pn_dependents;
 			let rec loop c = match c.cl_super with
@@ -1095,7 +1109,7 @@ module Purity = struct
 		let check_field c cf =
 			let node' = get_node c cf in
 			match node'.pn_purity with
-				| Pure | ExpectPure _ -> ()
+				| Pure | InferredPure | ExpectPure _ -> ()
 				| Impure -> taint_raise node;
 				| MaybePure -> node'.pn_dependents <- node :: node'.pn_dependents
 		in
@@ -1179,14 +1193,14 @@ module Purity = struct
 					apply_to_class com c
 				with Purity_conflict(impure,p) ->
 					com.error "Impure field overrides/implements field which was explicitly marked as @:pure" impure.pn_field.cf_pos;
-					Error.error "Pure field is here" p;
+					Error.typing_error (Error.compl_msg "Pure field is here") p;
 				end
 			| _ -> ()
 		) com.types;
 		Hashtbl.iter (fun _ node ->
 			match node.pn_purity with
 			| Pure | MaybePure when not (List.exists (fun (m,_,_) -> m = Meta.Pure) node.pn_field.cf_meta) ->
-				node.pn_field.cf_meta <- (Meta.Pure,[EConst(Ident "true"),node.pn_field.cf_pos],node.pn_field.cf_pos) :: node.pn_field.cf_meta
+				node.pn_field.cf_meta <- (Meta.Pure,[EConst(Ident "inferredPure"),node.pn_field.cf_pos],node.pn_field.cf_pos) :: node.pn_field.cf_meta
 			| _ -> ()
 		) node_lut;
 end

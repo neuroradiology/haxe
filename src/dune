@@ -11,8 +11,9 @@
 	(libraries
 		extc extproc extlib_leftovers ilib javalib mbedtls neko objsize pcre swflib ttflib ziplib
 		json
-		unix str threads dynlink
+		unix str bigarray threads dynlink
 		xml-light extlib ptmap sha
+		luv
 	)
 	(modules (:standard \ haxe))
 	(preprocess (per_module

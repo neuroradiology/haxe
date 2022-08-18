@@ -107,7 +107,7 @@ let emit_object_declaration proto fa env =
 	Array.iter (fun (i,exec) -> a.(i) <- exec env) fa;
 	vobject {
 		ofields = a;
-		oproto = proto;
+		oproto = OProto proto;
 	}
 
 let emit_array_declaration execs env =
@@ -408,8 +408,12 @@ let emit_field_closure exec name env =
 let emit_anon_field_read exec proto i name p env =
 	match vresolve (exec env) with
 	| VObject o ->
-		if proto == o.oproto then o.ofields.(i)
-		else object_field o name
+		begin match o.oproto with
+		| OProto proto' when proto' == proto ->
+			o.ofields.(i)
+		| _ ->
+			object_field o name
+		end
 	| VNull -> throw_string "field access on null" p
 	| v -> field v name
 
@@ -440,6 +444,11 @@ let emit_string_cca exec1 exec2 p env =
 	let index = decode_int_p (exec2 env) p in
 	if index < 0 || index >= s.slength then vnull
 	else vint (EvalString.char_at s index)
+
+let emit_string_cca_unsafe exec1 exec2 p env =
+	let s = decode_vstring (exec1 env) in
+	let index = decode_int_p (exec2 env) p in
+	vint (EvalString.char_at s index)
 
 (* Write *)
 
@@ -476,10 +485,14 @@ let emit_anon_field_write exec1 p proto i name exec2 env =
 	let v2 = exec2 env in
 	begin match vresolve v1 with
 		| VObject o ->
-			if proto == o.oproto then begin
+			begin match o.oproto with
+			| OProto proto' when proto' == proto ->
 				o.ofields.(i) <- v2;
-			end else set_object_field o name v2
-		| VNull -> throw_string "field access on null" p
+			| _ ->
+				set_object_field o name v2
+			end
+		| VNull ->
+			throw_string "field access on null" p
 		| _ ->
 			set_field v1 name v2;
 	end;
