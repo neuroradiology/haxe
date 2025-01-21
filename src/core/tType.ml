@@ -26,15 +26,18 @@ and method_kind =
 	| MethMacro
 
 type module_check_policy =
-	| NoCheckFileTimeModification
+	| NoFileSystemCheck
+	| CheckFileModificationTime
 	| CheckFileContentModification
-	| NoCheckDependencies
-	| NoCheckShadowing
-	| Retype
+
+type module_tainting_reason =
+	| CheckDisplayFile
+	| ServerInvalidate
+	| ServerInvalidateFiles
 
 type module_skip_reason =
-	| DependencyDirty of path
-	| Tainted of string
+	| DependencyDirty of path * module_skip_reason
+	| Tainted of module_tainting_reason
 	| FileChanged of string
 	| Shadowed of string
 	| LibraryChanged
@@ -44,6 +47,20 @@ type module_cache_state =
 	| MSBad of module_skip_reason
 	| MSUnknown
 
+type type_param_host =
+	| TPHType
+	| TPHConstructor
+	| TPHMethod
+	| TPHEnumConstructor
+	| TPHAnonField
+	| TPHLocal
+	| TPHUnbound
+
+type cache_bound_object =
+	| Resource of string * string
+	| IncludeFile of string * string
+	| Warning of WarningList.warning * string * pos
+
 type t =
 	| TMono of tmono
 	| TEnum of tenum * tparams
@@ -51,7 +68,7 @@ type t =
 	| TType of tdef * tparams
 	| TFun of tsignature
 	| TAnon of tanon
-	| TDynamic of t
+	| TDynamic of t option
 	| TLazy of tlazy ref
 	| TAbstract of tabstract * tparams
 
@@ -66,13 +83,13 @@ and tmono = {
 	*)
 	mutable tm_down_constraints : tmono_constraint list;
 	mutable tm_up_constraints : (t * string option) list;
+	mutable tm_modifiers : tmono_modifier list;
 }
 
 and tmono_constraint =
 	| MMono of tmono * string option
 	| MField of tclass_field
 	| MType of t * string option
-	| MOpenStructure
 	| MEmptyStructure
 
 and tmono_constraint_kind =
@@ -81,9 +98,14 @@ and tmono_constraint_kind =
 	| CMixed of tmono_constraint_kind list
 	| CTypes of (t * string option) list
 
+and tmono_modifier =
+	| MNullable of (t -> t)
+	| MOpenStructure
+	| MDynamic (* There was a unificaiton against Dynamic, which didn't bind the mono *)
+
 and tlazy =
 	| LAvailable of t
-	| LProcessing of (unit -> t)
+	| LProcessing of t
 	| LWait of (unit -> t)
 
 and tsignature = (string * bool * t) list * t
@@ -92,8 +114,11 @@ and tparams = t list
 
 and typed_type_param = {
 	ttp_name : string;
-	ttp_type : t;
-	ttp_default : t option;
+	ttp_class : tclass;
+	ttp_host : type_param_host;
+	mutable ttp_type : t;
+	mutable ttp_constraints : t list Lazy.t option;
+	mutable ttp_default : t option;
 }
 
 and type_params = typed_type_param list
@@ -124,8 +149,9 @@ and tvar_kind =
 	| VUser of tvar_origin
 	| VGenerated
 	| VInlined
-	| VInlinedConstructorVariable
+	| VInlinedConstructorVariable of string list
 	| VExtractorVariable
+	| VAbstractThis
 
 and tvar = {
 	mutable v_id : int;
@@ -148,7 +174,7 @@ and anon_status =
 	| Closed
 	| Const
 	| Extend of t list
-	| Statics of tclass
+	| ClassStatics of tclass
 	| EnumStatics of tenum
 	| AbstractStatics of tabstract
 
@@ -176,7 +202,7 @@ and texpr_expr =
 	| TFor of tvar * texpr * texpr
 	| TIf of texpr * texpr * texpr option
 	| TWhile of texpr * texpr * Ast.while_flag
-	| TSwitch of texpr * (texpr list * texpr) list * texpr option
+	| TSwitch of tswitch
 	| TTry of texpr * (tvar * texpr) list
 	| TReturn of texpr option
 	| TBreak
@@ -187,6 +213,18 @@ and texpr_expr =
 	| TEnumParameter of texpr * tenum_field * int
 	| TEnumIndex of texpr
 	| TIdent of string
+
+and tswitch = {
+	switch_subject : texpr;
+	switch_cases : switch_case list;
+	switch_default: texpr option;
+	switch_exhaustive : bool;
+}
+
+and switch_case = {
+	case_patterns : texpr list;
+	case_expr : texpr;
+}
 
 and tfield_access =
 	| FInstance of tclass * tparams * tclass_field
@@ -219,7 +257,7 @@ and tclass_field = {
 
 and tclass_kind =
 	| KNormal
-	| KTypeParameter of t list
+	| KTypeParameter of typed_type_param
 	| KExpr of Ast.expr
 	| KGeneric
 	| KGenericInstance of tclass * tparams
@@ -235,11 +273,12 @@ and tinfos = {
 	mt_module : module_def;
 	mt_pos : pos;
 	mt_name_pos : pos;
-	mt_private : bool;
-	mt_doc : Ast.documentation;
+	mutable mt_private : bool;
+	mutable mt_doc : Ast.documentation;
 	mutable mt_meta : metadata;
-	mt_params : type_params;
+	mutable mt_params : type_params;
 	mutable mt_using : (tclass * pos) list;
+	mutable mt_restore : unit -> unit;
 }
 
 and tclass = {
@@ -252,7 +291,9 @@ and tclass = {
 	mutable cl_meta : metadata;
 	mutable cl_params : type_params;
 	mutable cl_using : (tclass * pos) list;
+	mutable cl_restore : unit -> unit;
 	(* do not insert any fields above *)
+	mutable cl_type : t;
 	mutable cl_kind : tclass_kind;
 	mutable cl_flags : int;
 	mutable cl_super : (tclass * tparams) option;
@@ -264,10 +305,9 @@ and tclass = {
 	mutable cl_dynamic : t option;
 	mutable cl_array_access : t option;
 	mutable cl_constructor : tclass_field option;
-	mutable cl_init : texpr option;
+	mutable cl_init : tclass_field option;
 
 	mutable cl_build : unit -> build_state;
-	mutable cl_restore : unit -> unit;
 	(*
 		These are classes which directly extend or directly implement this class.
 		Populated automatically in post-processing step (Filters.run)
@@ -291,14 +331,15 @@ and tenum = {
 	e_module : module_def;
 	e_pos : pos;
 	e_name_pos : pos;
-	e_private : bool;
+	mutable e_private : bool;
 	mutable e_doc : Ast.documentation;
 	mutable e_meta : metadata;
 	mutable e_params : type_params;
 	mutable e_using : (tclass * pos) list;
+	mutable e_restore : unit -> unit;
 	(* do not insert any fields above *)
-	e_type : tdef;
-	mutable e_extern : bool;
+	mutable e_type : t;
+	mutable e_flags : int;
 	mutable e_constrs : (string , tenum_field) PMap.t;
 	mutable e_names : string list;
 }
@@ -308,11 +349,12 @@ and tdef = {
 	t_module : module_def;
 	t_pos : pos;
 	t_name_pos : pos;
-	t_private : bool;
-	t_doc : Ast.documentation;
+	mutable t_private : bool;
+	mutable t_doc : Ast.documentation;
 	mutable t_meta : metadata;
 	mutable t_params : type_params;
 	mutable t_using : (tclass * pos) list;
+	mutable t_restore : unit -> unit;
 	(* do not insert any fields above *)
 	mutable t_type : t;
 }
@@ -322,11 +364,12 @@ and tabstract = {
 	a_module : module_def;
 	a_pos : pos;
 	a_name_pos : pos;
-	a_private : bool;
+	mutable a_private : bool;
 	mutable a_doc : Ast.documentation;
 	mutable a_meta : metadata;
 	mutable a_params : type_params;
 	mutable a_using : (tclass * pos) list;
+	mutable a_restore : unit -> unit;
 	(* do not insert any fields above *)
 	mutable a_ops : (Ast.binop * tclass_field) list;
 	mutable a_unops : (Ast.unop * unop_flag * tclass_field) list;
@@ -340,7 +383,8 @@ and tabstract = {
 	mutable a_read : tclass_field option;
 	mutable a_write : tclass_field option;
 	mutable a_call : tclass_field option;
-	a_enum : bool;
+	mutable a_extern : bool;
+	mutable a_enum : bool;
 }
 
 and module_type =
@@ -363,9 +407,25 @@ and module_def_display = {
 	mutable m_import_positions : (pos,bool ref) PMap.t;
 }
 
+and module_dep_origin =
+	| MDepFromTyping
+	| MDepFromImport
+	| MDepFromMacro
+	(* Compiler.include loads module with this special origin, which tells add_dependency not to add as a proper dependency. *)
+	| MDepFromMacroInclude
+	(* Modules created via Compiler.defineType or Compiler.defineModule will be added as dependency to their "parent" module with this origin. *)
+	| MDepFromMacroDefine
+
+and module_dep = {
+	md_sign : Digest.t;
+	md_kind : module_kind;
+	md_path : path;
+	md_origin : module_dep_origin
+}
+
 and module_def_extra = {
 	m_file : Path.UniqueKey.lazy_t;
-	m_sign : string;
+	m_sign : Digest.t;
 	m_display : module_def_display;
 	mutable m_check_policy : module_check_policy list;
 	mutable m_time : float;
@@ -373,11 +433,25 @@ and module_def_extra = {
 	mutable m_added : int;
 	mutable m_checked : int;
 	mutable m_processed : int;
-	mutable m_deps : (int,module_def) PMap.t;
+	mutable m_deps : (int,module_dep) PMap.t;
+	mutable m_display_deps : (int,module_dep) PMap.t option;
 	mutable m_kind : module_kind;
-	mutable m_binded_res : (string, string) PMap.t;
-	mutable m_if_feature : (string *(tclass * tclass_field * bool)) list;
+	mutable m_cache_bound_objects : cache_bound_object DynArray.t;
 	mutable m_features : (string,bool) Hashtbl.t;
+}
+
+and class_field_ref_kind =
+	| CfrStatic
+	| CfrMember
+	| CfrConstructor
+	| CfrInit
+
+and class_field_ref = {
+	cfr_sign : string;
+	cfr_path : path;
+	cfr_field : string;
+	cfr_kind : class_field_ref_kind;
+	cfr_is_macro : bool;
 }
 
 and module_kind =
@@ -392,14 +466,19 @@ and build_state =
 	| Building of tclass list
 	| BuildMacro of (unit -> unit) list ref
 
+
+exception Type_exception of t
+
 type basic_types = {
 	mutable tvoid : t;
+	mutable tany : t;
 	mutable tint : t;
 	mutable tfloat : t;
 	mutable tbool : t;
 	mutable tnull : t -> t;
 	mutable tstring : t;
 	mutable tarray : t -> t;
+	mutable titerator : t -> t
 }
 
 type class_field_scope =
@@ -412,6 +491,9 @@ type flag_tclass =
 	| CFinal
 	| CInterface
 	| CAbstract
+	| CFunctionalInterface
+	| CUsed (* Marker for DCE *)
+	| CExcluded (* Marker for exclude macro, turned into CExtern during filters *)
 
 type flag_tclass_field =
 	| CfPublic
@@ -427,16 +509,29 @@ type flag_tclass_field =
 	| CfGeneric
 	| CfDefault (* Interface field with default implementation (only valid on Java) *)
 	| CfPostProcessed (* Marker to indicate the field has been post-processed *)
+	| CfUsed (* Marker for DCE *)
+	| CfMaybeUsed (* Marker for DCE *)
+	| CfNoLookup (* Field cannot be accessed by-name. *)
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [
-	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault"
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed";"CfNoLookup"
 ]
+
+type flag_tenum =
+	| EnExtern
+	| EnExcluded (* Marker for exclude macro, turned into EnExtern during filters *)
 
 type flag_tvar =
 	| VCaptured
 	| VFinal
-	| VUsed (* used by the analyzer *)
+	| VAnalyzed
 	| VAssigned
 	| VCaught
 	| VStatic
+	| VUsedByTyper (* Set if the typer looked up this variable *)
+	| VHxb (* Flag used by hxb *)
+
+let flag_tvar_names = [
+	"VCaptured";"VFinal";"VAnalyzed";"VAssigned";"VCaught";"VStatic";"VUsedByTyper"
+]

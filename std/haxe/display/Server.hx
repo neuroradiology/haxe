@@ -98,8 +98,9 @@ typedef JsonModule = {
 	final types:Array<JsonTypePath>;
 	final file:String;
 	final sign:String;
-	final dirty:Null<String>;
+	final cacheState:Null<String>;
 	final dependencies:Array<ModuleId>;
+	final dependents:Array<ModuleId>;
 }
 
 typedef JsonServerFile = {
@@ -107,6 +108,12 @@ typedef JsonServerFile = {
 	final time:Float;
 	final pack:String;
 	final moduleName:Null<String>;
+}
+
+typedef AdditionalSize = {
+	final name:String;
+	final size:Int;
+	final child:Array<AdditionalSize>;
 }
 
 /* Memory */
@@ -121,7 +128,7 @@ typedef HaxeMemoryResult = {
 		final haxelibCache:Int;
 		final directoryCache:Int;
 		final nativeLibCache:Int;
-		final ?additionalSizes:Array<{name:String, size:Int}>;
+		final ?additionalSizes:Array<AdditionalSize>;
 	}
 }
 
@@ -135,6 +142,9 @@ typedef HaxeContextMemoryResult = {
 		}>;
 	};
 	final syntaxCache:{
+		final size:Int;
+	};
+	final binaryCache:{
 		final size:Int;
 	};
 	final ?leaks:Array<{

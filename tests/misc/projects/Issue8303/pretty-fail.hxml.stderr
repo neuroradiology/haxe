@@ -1,0 +1,48 @@
+[ERROR] Main.hx
+
+   | Uncaught exception Stack overflow
+
+     8 |    log();
+       |    ^^^^^
+       | Called from here
+
+       | Called from here
+
+       | Called from here
+
+       | Called from here
+
+       | Called from here
+
+       | Called from here
+
+       | Called from here
+
+       | Called from here
+
+       | Called from here
+
+       | Called from here
+
+       | Called from here
+
+       | Called from here
+
+       | Called from here
+
+       | Called from here
+
+       | Called from here
+
+       | Called from here
+
+       | Called from here
+
+    10 |   log();
+       |   ^^^^^
+       | Called from here
+
+     3 |   test();
+       |   ^^^^^^
+       | Called from here
+

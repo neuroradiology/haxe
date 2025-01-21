@@ -59,10 +59,14 @@ PACKAGE_FILE_NAME=haxe_$(COMMIT_DATE)_$(COMMIT_SHA)
 HAXE_VERSION=$(shell $(CURDIR)/$(HAXE_OUTPUT) -version 2>&1 | awk '{print $$1;}')
 HAXE_VERSION_SHORT=$(shell echo "$(HAXE_VERSION)" | grep -oE "^[0-9]+\.[0-9]+\.[0-9]+")
 
+NEKO_VERSION=2.4.0-rc.1
+NEKO_MAJOR_VERSION=$(shell echo "$(NEKO_VERSION)" | grep -oE "^[0-9]+")
+NEKO_VERSION_TAG=v$(shell echo "$(NEKO_VERSION)" | sed "s/\./-/g")
+
 ifneq ($(STATICLINK),0)
-	LIB_PARAMS= -cclib '-Wl,-Bstatic -lpcre -lz -lmbedtls -lmbedx509 -lmbedcrypto -Wl,-Bdynamic '
+	LIB_PARAMS= -cclib '-Wl,-Bstatic -lpcre2-8 -lz -lmbedtls -lmbedx509 -lmbedcrypto -Wl,-Bdynamic '
 else
-	LIB_PARAMS?= -cclib -lpcre -cclib -lz -cclib -lmbedtls -cclib -lmbedx509 -cclib -lmbedcrypto
+	LIB_PARAMS?= -cclib -lpcre2-8 -cclib -lz -cclib -lmbedtls -cclib -lmbedx509 -cclib -lmbedcrypto
 endif
 ifeq ($(SYSTEM_NAME),Mac)
 	LIB_PARAMS+= -cclib '-framework Security -framework CoreFoundation'
@@ -100,10 +104,24 @@ copy_haxetoolkit: /cygdrive/c/HaxeToolkit/haxe/haxe.exe
 	cp $< $@
 endif
 
+ifeq ($(SYSTEM_NAME),Mac)
+# This assumes that haxelib and neko will both be installed into INSTALL_DIR,
+# which is the case when installing using the mac installer package
+HAXELIB_LFLAGS= -Wl,-rpath,$(INSTALL_DIR)/lib
+endif
+
+haxelib_unix:
+	cd $(CURDIR)/extra/haxelib_src && \
+	HAXE_STD_PATH=$(CURDIR)/std $(CURDIR)/$(HAXE_OUTPUT) client.hxml && \
+	nekotools boot -c run.n
+	$(CC) $(CURDIR)/extra/haxelib_src/run.c -o $(HAXELIB_OUTPUT) -lneko $(HAXELIB_LFLAGS)
+
 # haxelib should depends on haxe, but we don't want to do that...
-haxelib:
-	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(HAXE_OUTPUT) client.hxml && nekotools boot run.n)
-	mv extra/haxelib_src/run$(EXTENSION) $(HAXELIB_OUTPUT)
+ifeq ($(SYSTEM_NAME),Windows)
+haxelib: haxelib_$(PLATFORM)
+else
+haxelib: haxelib_unix
+endif
 
 tools: haxelib
 
@@ -124,7 +142,7 @@ uninstall:
 	rm -rf $(DESTDIR)$(INSTALL_STD_DIR)
 
 opam_install:
-	opam install camlp5 ocamlfind dune --yes
+	opam install ocamlfind dune --yes
 
 haxe_deps:
 	opam pin add haxe . --no-action
@@ -158,26 +176,34 @@ xmldoc:
 	$(CURDIR)/$(HAXELIB_OUTPUT) newrepo && \
 	$(CURDIR)/$(HAXELIB_OUTPUT) git hxcpp  https://github.com/HaxeFoundation/hxcpp   && \
 	$(CURDIR)/$(HAXELIB_OUTPUT) git hxjava https://github.com/HaxeFoundation/hxjava  && \
-	$(CURDIR)/$(HAXELIB_OUTPUT) git hxcs   https://github.com/HaxeFoundation/hxcs    && \
 	PATH="$(CURDIR):$(PATH)" $(CURDIR)/$(HAXE_OUTPUT) doc.hxml
 
 $(INSTALLER_TMP_DIR):
 	mkdir -p $(INSTALLER_TMP_DIR)
 
-$(INSTALLER_TMP_DIR)/neko-osx64.tar.gz: $(INSTALLER_TMP_DIR)
-	wget -nv https://github.com/HaxeFoundation/neko/releases/download/v2-3-0/neko-2.3.0-osx64.tar.gz -O installer/neko-osx64.tar.gz
+# Can be 'universal', 'arm64', or 'x86_64'
+ifndef PACKAGE_INSTALLER_MAC_ARCH
+PACKAGE_INSTALLER_MAC_ARCH:=$(shell uname -m)
+endif
+
+$(INSTALLER_TMP_DIR)/neko-osx.tar.gz: $(INSTALLER_TMP_DIR)
+	NEKO_ARCH_SUFFIX=$$(if [ "$(PACKAGE_INSTALLER_MAC_ARCH)" = "x86_64" ]; then \
+		echo 64; \
+	else \
+		echo "-$(PACKAGE_INSTALLER_MAC_ARCH)"; \
+	fi); \
+	wget -nv https://github.com/HaxeFoundation/neko/releases/download/$(NEKO_VERSION_TAG)/neko-$(NEKO_VERSION)-osx$$NEKO_ARCH_SUFFIX.tar.gz -O installer/neko-osx.tar.gz
 
 # Installer
 
-package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz package_unix
+package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx.tar.gz package_unix
 	$(eval OUTFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.tar.gz)
 	$(eval PACKFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz)
 	$(eval VERSION := $(shell $(CURDIR)/$(HAXE_OUTPUT) -version 2>&1))
-	$(eval NEKOVER := $(shell neko -version 2>&1))
 	bash -c "rm -rf $(INSTALLER_TMP_DIR)/{resources,pkg,tgz,haxe.tar.gz}"
 	mkdir $(INSTALLER_TMP_DIR)/resources
 	# neko - unpack to change the dir name
-	cd $(INSTALLER_TMP_DIR)/resources && tar -zxvf ../neko-osx64.tar.gz
+	cd $(INSTALLER_TMP_DIR)/resources && tar -zxvf ../neko-osx.tar.gz
 	mv $(INSTALLER_TMP_DIR)/resources/neko* $(INSTALLER_TMP_DIR)/resources/neko
 	cd $(INSTALLER_TMP_DIR)/resources && tar -zcvf neko.tar.gz neko
 	# haxe - unpack to change the dir name
@@ -186,6 +212,8 @@ package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz package_unix
 	cd $(INSTALLER_TMP_DIR)/resources && tar -zcvf haxe.tar.gz haxe
 	# scripts
 	cp -rf extra/mac-installer/* $(INSTALLER_TMP_DIR)/resources
+	sed -i '' 's/%%NEKO_VERSION%%/$(NEKO_VERSION)/g' $(INSTALLER_TMP_DIR)/resources/scripts/neko-postinstall.sh
+	sed -i '' 's/%%NEKO_MAJOR_VERSION%%/$(NEKO_MAJOR_VERSION)/g' $(INSTALLER_TMP_DIR)/resources/scripts/neko-postinstall.sh
 	cd $(INSTALLER_TMP_DIR)/resources && tar -zcvf scripts.tar.gz scripts
 	# installer structure
 	mkdir -p $(INSTALLER_TMP_DIR)/pkg
@@ -201,12 +229,12 @@ package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz package_unix
 	sed -i '' 's/%%VERSION%%/$(VERSION)/g' PackageInfo ;\
 	sed -i '' 's/%%VERSTRING%%/$(VERSION)/g' PackageInfo ;\
 	sed -i '' 's/%%VERLONG%%/$(VERSION)/g' PackageInfo ;\
-	sed -i '' 's/%%NEKOVER%%/$(NEKOVER)/g' PackageInfo ;\
+	sed -i '' 's/%%NEKOVER%%/$(NEKO_VERSION)/g' PackageInfo ;\
 	cd .. ;\
 	sed -i '' 's/%%VERSION%%/$(VERSION)/g' Distribution ;\
 	sed -i '' 's/%%VERSTRING%%/$(VERSION)/g' Distribution ;\
 	sed -i '' 's/%%VERLONG%%/$(VERSION)/g' Distribution ;\
-	sed -i '' 's/%%NEKOVER%%/$(NEKOVER)/g' Distribution ;\
+	sed -i '' 's/%%NEKOVER%%/$(NEKO_VERSION)/g' Distribution ;\
 	sed -i '' 's/%%INSTKB%%/$$INSTKBH/g' Distribution"
 	# repackage
 	cd $(INSTALLER_TMP_DIR)/pkg; xar --compression none -cf ../$(PACKAGE_FILE_NAME).pkg *

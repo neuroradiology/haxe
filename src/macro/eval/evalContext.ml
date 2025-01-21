@@ -44,6 +44,7 @@ type scope = {
 type env_kind =
 	| EKLocalFunction of int
 	| EKMethod of int * int
+	| EKMacro of int * int
 	| EKEntrypoint
 
 (* Compile-time information for environments. This information is static for all
@@ -287,6 +288,8 @@ and context = {
 	mutable evals : eval IntMap.t;
 	mutable exception_stack : (pos * env_kind) list;
 	max_stack_depth : int;
+	max_print_depth : int;
+	print_indentation : string option;
 }
 
 module GlobalState = struct
@@ -300,11 +303,6 @@ module GlobalState = struct
 
 	let stdlib : builtins option ref = ref None
 	let macro_lib : (string,value) Hashtbl.t = Hashtbl.create 0
-
-	let cleanup ctx =
-		(* curapi holds a reference to the typing context which we don't want to persist. Let's unset it so the
-		   context can be collected. *)
-		ctx.curapi <- Obj.magic ""
 end
 
 let get_ctx () = (!GlobalState.get_ctx_ref)()
@@ -331,11 +329,12 @@ let get_eval ctx =
 		with Not_found ->
 			die "Cannot run Haxe code in a non-Haxe thread" __LOC__
 
-
-let rec kind_name eval kind =
+let kind_name eval kind =
 	let rec loop kind env = match kind with
 		| EKMethod(i1,i2) ->
 			Printf.sprintf "%s.%s" (rev_hash i1) (rev_hash i2)
+		| EKMacro(i1,i2) ->
+			Printf.sprintf "Macro call: %s.%s" (rev_hash i1) (rev_hash i2)
 		| EKLocalFunction i ->
 			begin match env with
 			| None -> Printf.sprintf "localFunction%i" i
@@ -403,11 +402,9 @@ let exc v = throw v null_pos
 
 let exc_string str = exc (vstring (EvalString.create_ascii str))
 
-let error_message = exc_string
+let exc_string_p str p = throw (vstring (EvalString.create_ascii str)) p
 
-let flush_core_context f =
-	let ctx = get_ctx() in
-	ctx.curapi.MacroApi.flush_context f
+let error_message = exc_string
 
 (* Environment handling *)
 
@@ -469,7 +466,7 @@ let push_environment ctx info =
 		env_locals = locals;
 		env_captures = captures;
 		env_extra_locals = IntMap.empty;
-		env_parent = eval.env;
+		env_parent = if info.kind = EKEntrypoint then None else eval.env;
 		env_eval = eval;
 		env_stack_depth = stack_depth;
 	} in
@@ -502,7 +499,7 @@ let get_static_prototype_raise ctx path =
 
 let get_static_prototype ctx path p =
 	try get_static_prototype_raise ctx path
-	with Not_found -> Error.typing_error (Printf.sprintf "[%i] Type not found: %s" ctx.ctx_id (rev_hash path)) p
+	with Not_found -> Error.raise_typing_error (Printf.sprintf "[%i] Type not found: %s" ctx.ctx_id (rev_hash path)) p
 
 let get_static_prototype_as_value ctx path p =
 	(get_static_prototype ctx path p).pvalue
@@ -512,14 +509,14 @@ let get_instance_prototype_raise ctx path =
 
 let get_instance_prototype ctx path p =
 	try get_instance_prototype_raise ctx path
-	with Not_found -> Error.typing_error (Printf.sprintf "[%i] Instance prototype not found: %s" ctx.ctx_id (rev_hash path)) p
+	with Not_found -> Error.raise_typing_error (Printf.sprintf "[%i] Instance prototype not found: %s" ctx.ctx_id (rev_hash path)) p
 
 let get_instance_constructor_raise ctx path =
 	IntMap.find path ctx.constructors
 
 let get_instance_constructor ctx path p =
 	try get_instance_constructor_raise ctx path
-	with Not_found -> Error.typing_error (Printf.sprintf "[%i] Instance constructor not found: %s" ctx.ctx_id (rev_hash path)) p
+	with Not_found -> Error.raise_typing_error (Printf.sprintf "[%i] Instance constructor not found: %s" ctx.ctx_id (rev_hash path)) p
 
 let get_special_instance_constructor_raise ctx path =
 	Hashtbl.find (get_ctx()).builtins.constructor_builtins path
@@ -529,14 +526,14 @@ let get_proto_field_index_raise proto name =
 
 let get_proto_field_index proto name =
 	try get_proto_field_index_raise proto name
-	with Not_found -> Error.typing_error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) null_pos
+	with Not_found -> Error.raise_typing_error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) null_pos
 
 let get_instance_field_index_raise proto name =
 	IntMap.find name proto.pinstance_names
 
 let get_instance_field_index proto name p =
 	try get_instance_field_index_raise proto name
-	with Not_found -> Error.typing_error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p
+	with Not_found -> Error.raise_typing_error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p
 
 let is v path =
 	if path = key_Dynamic then

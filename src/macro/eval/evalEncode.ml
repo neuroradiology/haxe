@@ -182,6 +182,12 @@ let encode_enum i pos index pl =
 		| IImportMode -> key_haxe_macro_ImportMode
 		| IQuoteStatus -> key_haxe_macro_QuoteStatus
 		| IDisplayKind -> key_haxe_macro_DisplayKind
+		| IDisplayMode -> key_haxe_macro_DisplayMode
+		| ICapturePolicy -> key_haxe_macro_CapturePolicy
+		| IVarScope -> key_haxe_macro_VarScope
+		| IVarScopingFlags -> key_haxe_macro_VarScopingFlags
+		| IPlatform -> key_haxe_macro_Platform
+		| IPackageRule -> key_haxe_macro_PackageRule
 		| IMessage -> key_haxe_macro_Message
 		| IFunctionKind -> key_haxe_macro_FunctionKind
 		| IStringLiteralKind -> key_haxe_macro_StringLiteralKind
@@ -310,12 +316,7 @@ let encode_ref v convert tostr =
 		ikind = IRef (Obj.repr v);
 	}
 
-let encode_lazy f =
-	let rec r = ref (fun () ->
-		let v = f() in
-		r := (fun () -> v);
-		v
-	) in
+let encode_lazy r =
 	VLazy r
 
 let encode_option encode_value o =

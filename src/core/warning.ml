@@ -13,7 +13,7 @@ type warning_option = {
 
 let parse_options s ps lexbuf =
 	let fail msg p =
-		Error.typing_error msg {p with pmin = ps.pmin + p.pmin; pmax = ps.pmin + p.pmax}
+		raise_typing_error msg {p with pmin = ps.pmin + p.pmin; pmax = ps.pmin + p.pmax}
 	in
 	let parse_string s p =
 		begin try
@@ -58,7 +58,7 @@ let from_meta ml =
 			let p = snd e in
 			parse_options s {p with pmin = p.pmin + 1; pmax = p.pmax - 1} (* pmin is on the quote *)
 		| _ ->
-			Error.typing_error "String expected" (snd e)
+			raise_typing_error "String expected" (snd e)
 	in
 	let rec loop acc ml = match ml with
 		| (Meta.HaxeWarning,args,_) :: ml ->
@@ -79,17 +79,20 @@ let get_mode w (l : warning_option list list) =
 			| None -> false
 			| Some w' -> matches w' id
 	in
-	let rec loop mode l = match l with
+	let rec loop l = match l with
 		| [] ->
-			mode
+			WMEnable
 		| l2 :: l ->
-			let rec loop2 mode l = match l with
+			let rec loop2 l = match l with
 				| [] ->
-					mode
+					None
 				| opt :: l ->
-					let mode = if matches w opt.wo_warning then opt.wo_mode else mode in
-					loop2 mode l
+					if matches w opt.wo_warning then Some opt.wo_mode else loop2 l
 			in
-			loop (loop2 mode l2) l
+			match loop2 l2 with
+			| None ->
+				loop l
+			| Some mode ->
+				mode
 	in
-	loop WMEnable (* ? *) l
+	loop l

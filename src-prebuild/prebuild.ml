@@ -7,6 +7,18 @@ type parsed_warning = {
 	w_doc : string;
 	w_parent : string option;
 	w_generic : bool;
+	w_enabled : bool;
+}
+
+type parsed_meta = {
+	m_name : string;
+	m_meta : string;
+	m_doc : string;
+	m_params : string list;
+	m_platforms : string list;
+	m_targets : string list;
+	m_internal : bool;
+	m_links : string list;
 }
 
 let as_string = function
@@ -33,8 +45,7 @@ let as_platforms = function
 			| JString "flash" -> "Flash"
 			| JString "php" -> "Php"
 			| JString "cpp" -> "Cpp"
-			| JString "cs" -> "Cs"
-			| JString "java" -> "Java"
+			| JString "jvm" -> "Jvm"
 			| JString "python" -> "Python"
 			| JString "hl" -> "Hl"
 			| JString "eval" -> "Eval"
@@ -104,21 +115,24 @@ let parse_define json =
 	(* doc *) get_field "doc" as_string fields,
 	(* params *) get_optional_field "params" as_params [] fields,
 	(* platforms *) get_optional_field "platforms" as_platforms [] fields,
-	(* links *) get_optional_field "links" as_links [] fields
+	(* links *) get_optional_field "links" as_links [] fields,
+	(* deprecated *) get_optional_field2 "deprecated" as_string fields
 
 let parse_meta json =
 	let fields = match json with
 		| JObject fl -> fl
 		| _ -> raise (Prebuild_error "not an object")
 	in
-	(* name *) get_field "name" as_string fields,
-	(* metadata *) get_field "metadata" as_string fields,
-	(* doc *) get_field "doc" as_string fields,
-	(* params *) get_optional_field "params" as_params [] fields,
-	(* platforms *) get_optional_field "platforms" as_platforms [] fields,
-	(* targets *) get_optional_field "targets" as_targets [] fields,
-	(* internal *) get_optional_field "internal" as_bool false fields,
-	(* links *) get_optional_field "links" as_links [] fields
+	{
+		m_name = get_field "name" as_string fields;
+		m_meta = get_field "metadata" as_string fields;
+		m_doc = get_field "doc" as_string fields;
+		m_params = get_optional_field "params" as_params [] fields;
+		m_platforms = get_optional_field "platforms" as_platforms [] fields;
+		m_targets = get_optional_field "targets" as_targets [] fields;
+		m_internal = get_optional_field "internal" as_bool false fields;
+		m_links = get_optional_field "links" as_links [] fields
+	}
 
 let parse_warning json =
 	let fields = match json with
@@ -130,6 +144,7 @@ let parse_warning json =
 		w_doc = get_field "doc" as_string fields;
 		w_parent = get_optional_field2 "parent" as_string fields;
 		w_generic = get_optional_field "generic" as_bool false fields;
+		w_enabled = get_optional_field "enabled" as_bool true fields;
 	}
 
 let parse_file_array path map =
@@ -165,42 +180,54 @@ let gen_params = List.map (function param -> "HasParam \"" ^ param ^ "\"" )
 let gen_links = List.map (function link -> "Link \"" ^ link ^ "\"" )
 
 let gen_define_type defines =
-	String.concat "\n" (List.map (function (name, _, _, _, _, _) -> "\t| " ^ name) defines)
+	String.concat "\n" (List.map (function (name, _, _, _, _, _, _) -> "\t| " ^ name) defines)
+
+let gen_option f = function
+	| None -> "None"
+	| Some x -> Printf.sprintf "Some(%s)" (f x)
 
 let gen_define_info defines =
+	let deprecations = DynArray.create() in
 	let define_str = List.map (function
-		(name, define, doc, params, platforms, links) ->
+		(name, define, doc, params, platforms, links, deprecated) ->
 			let platforms_str = gen_platforms platforms in
 			let params_str = gen_params params in
 			let links_str = gen_links links in
 			let define = String.concat "_" (ExtString.String.nsplit define "-") in
-			"\t| " ^ name ^ " -> \"" ^ define ^ "\",(" ^ (Printf.sprintf "%S" doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ links_str)) ^ "])"
+			let deprecated = match deprecated with
+				| None ->
+					[]
+				| Some x ->
+					let quoted = Printf.sprintf "%S" x in
+					DynArray.add deprecations (Printf.sprintf "\t(%S,%S)" define x);
+					[Printf.sprintf "Deprecated(%s)" quoted]
+			in
+			"\t| " ^ name ^ " -> \"" ^ define ^ "\",(" ^ (Printf.sprintf "%S" doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ links_str @ deprecated)) ^ "])"
 	) defines in
-	String.concat "\n" define_str
+	String.concat "\n" define_str,String.concat ";\n" (DynArray.to_list deprecations)
 
 let gen_meta_type metas =
 	String.concat "\n" (List.map (function
-		| ("InlineConstructorArgument", _, _, _, _, _, _, _) -> "\t| InlineConstructorArgument of int * int"
-		| (name, _, _, _, _, _, _, _) -> "\t| " ^ name
+		| {m_name = "InlineConstructorArgument"} -> "\t| InlineConstructorArgument of int * int"
+		| {m_name = name} -> "\t| " ^ name
 	) metas)
 
 let gen_meta_info metas =
-	let meta_str = List.map (function
-		(name, metadata, doc, params, platforms, targets, internal, links) ->
-			let platforms_str = gen_platforms platforms in
-			let params_str = gen_params params in
-			let targets_str = (match targets with
+	let meta_str = List.map (function meta ->
+			let platforms_str = gen_platforms meta.m_platforms in
+			let params_str = gen_params meta.m_params in
+			let targets_str = (match meta.m_targets with
 				| [] -> []
 				| targets -> ["UsedOn [" ^ (String.concat ";" targets) ^ "]"]
 			) in
-			let internal_str = if internal then ["UsedInternally"] else [] in
-			let links_str = gen_links links in
-			let name = (match name with
+			let internal_str = if meta.m_internal then ["UsedInternally"] else [] in
+			let links_str = gen_links meta.m_links in
+			let name = (match meta.m_name with
 				(* this is a hacky, I know *)
 				| "InlineConstructorArgument" -> "InlineConstructorArgument _"
-				| _ -> name
+				| _ -> meta.m_name
 			) in
-			"\t| " ^ name ^ " -> \"" ^ metadata ^ "\",(" ^ (Printf.sprintf "%S" doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ targets_str @ internal_str @ links_str)) ^ "])"
+			"\t| " ^ name ^ " -> \"" ^ meta.m_meta ^ "\",(" ^ (Printf.sprintf "%S" meta.m_doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ targets_str @ internal_str @ links_str)) ^ "])"
 	) metas in
 	String.concat "\n" meta_str
 
@@ -230,6 +257,15 @@ let gen_warning_obj warnings =
 	) warnings in
 	String.concat "\n" warning_str
 
+let gen_disabled_warnings warnings =
+	let warning_str = ExtList.List.filter_map (fun w ->
+		if w.w_enabled then
+			None
+		else
+			Some w.w_name
+	) warnings in
+	String.concat ";" warning_str
+
 let autogen_header = "(* This file is auto-generated using prebuild from files in src-json *)
 (* Do not edit manually! *)
 "
@@ -241,7 +277,7 @@ type define_parameter =
 	| HasParam of string
 	| Platforms of platform list
 	| Link of string
-
+	| Deprecated of string
 "
 
 let meta_header = autogen_header ^ "
@@ -258,6 +294,31 @@ type meta_usage =
 	| TExpr
 	| TTypeParameter
 	| TVariable
+
+let parse_meta_usage = function
+	| \"TClass\" -> TClass
+	| \"TClassField\" -> TClassField
+	| \"TAbstract\" -> TAbstract
+	| \"TAbstractField\" -> TAbstractField
+	| \"TEnum\" -> TEnum
+	| \"TTypedef\" -> TTypedef
+	| \"TAnyField\" -> TAnyField
+	| \"TExpr\" -> TExpr
+	| \"TTypeParameter\" -> TTypeParameter
+	| \"TVariable\" -> TVariable
+	| t -> raise (failwith (\"invalid metadata target \" ^ t))
+
+let print_meta_usage = function
+	| TClass -> \"TClass\"
+	| TClassField -> \"TClassField\"
+	| TAbstract -> \"TAbstract\"
+	| TAbstractField -> \"TAbstractField\"
+	| TEnum -> \"TEnum\"
+	| TTypedef -> \"TTypedef\"
+	| TAnyField -> \"TAnyField\"
+	| TExpr -> \"TExpr\"
+	| TTypeParameter -> \"TTypeParameter\"
+	| TVariable -> \"TVariable\"
 
 type meta_parameter =
 	| HasParam of string
@@ -276,10 +337,12 @@ match Array.to_list (Sys.argv) with
 		Printf.printf "%s" define_header;
 		Printf.printf "type strict_defined =\n";
 		Printf.printf "%s" (gen_define_type defines);
-		Printf.printf "\n\t| Last\n\n"; (* must be last *)
+		Printf.printf "\n\t| Last\n\t| Custom of string\n\n";
+		let infos,deprecations = gen_define_info defines in
 		Printf.printf "let infos = function\n";
-		Printf.printf "%s" (gen_define_info defines);
-		Printf.printf "\n\t| Last -> die \"\" __LOC__\n"
+		Printf.printf "%s" infos;
+		Printf.printf "\n\t| Last -> die \"\" __LOC__\n\t| Custom s -> s,(\"\",[])\n";
+		Printf.printf "\nlet deprecated_defines = [\n%s\n]\n" deprecations;
 	| [_; "meta"; meta_path]->
 		let metas = parse_file_array meta_path parse_meta in
 		Printf.printf "%s" meta_header;
@@ -303,6 +366,10 @@ match Array.to_list (Sys.argv) with
 		print_endline "";
 		print_endline "let warning_obj = function";
 		print_endline (gen_warning_obj warnings);
+		print_endline ";;";
+		print_endline "let disabled_warnings = [";
+		print_endline (gen_disabled_warnings warnings);
+		print_endline "];;";
 		print_endline "";
 		print_endline "let from_string = function";
 		print_endline (gen_warning_parse warnings);
